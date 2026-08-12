@@ -17,3 +17,7 @@ top_block.py
 .idea/
 .DS_Store
 *.swp
+
+dist/
+build/
+*.spec
