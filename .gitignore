@@ -18,6 +18,5 @@ top_block.py
 .DS_Store
 *.swp
 
-dist/
 build/
 *.spec
