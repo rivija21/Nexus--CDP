@@ -33,7 +33,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: 433.92e6
+    value: 443e6
   states:
     bus_sink: false
     bus_source: false
@@ -106,36 +106,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [520, 664.0]
-    rotation: 0
-    state: enabled
-- name: blocks_message_debug_1
-  id: blocks_message_debug
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    en_uvec: 'True'
-    log_level: info
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [760, 360.0]
-    rotation: 0
-    state: enabled
-- name: blocks_message_debug_2
-  id: blocks_message_debug
-  parameters:
-    affinity: ''
-    alias: ''
-    comment: ''
-    en_uvec: 'True'
-    log_level: info
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [256, 760.0]
     rotation: 0
     state: enabled
 - name: blocks_pack_k_bits_bb_0
@@ -316,7 +286,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1408, 184.0]
+    coordinate: [1416, 184.0]
     rotation: 0
     state: enabled
 - name: digital_crc32_async_bb_0
@@ -703,6 +673,98 @@ blocks:
     coordinate: [1584, 352.0]
     rotation: 180
     state: enabled
+- name: qtgui_const_sink_x_0_0
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    grid: 'False'
+    gui_hint: ''
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '""'
+    nconnections: '1'
+    size: '1024'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [736, 144.0]
+    rotation: 0
+    state: enabled
 - name: qtgui_freq_sink_x_0
   id: qtgui_freq_sink_x
   parameters:
@@ -734,7 +796,7 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: '0'
+    fc: freq
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
@@ -878,7 +940,68 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [928, 136.0]
+    coordinate: [944, 160.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_waterfall_sink_x_0
+  id: qtgui_waterfall_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '0'
+    color10: '0'
+    color2: '0'
+    color3: '0'
+    color4: '0'
+    color5: '0'
+    color6: '0'
+    color7: '0'
+    color8: '0'
+    color9: '0'
+    comment: ''
+    fc: freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'False'
+    gui_hint: ''
+    int_max: '10'
+    int_min: '-140'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '1'
+    showports: 'False'
+    type: complex
+    update_time: '0.10'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [720, 376.0]
     rotation: 0
     state: enabled
 - name: soapy_sink_0
@@ -917,7 +1040,7 @@ blocks:
     nchan: '1'
     nco_freq0: '0'
     nco_freq1: '0'
-    overall_gain0: '10'
+    overall_gain0: '42'
     overall_gain1: '0'
     pad_gain0: '0'
     pad_gain1: '0'
@@ -932,7 +1055,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1312, 36.0]
+    coordinate: [1376, 20.0]
     rotation: 0
     state: enabled
 - name: soapy_source_0
@@ -974,7 +1097,7 @@ blocks:
     nchan: '1'
     nco_freq0: '0'
     nco_freq1: '0'
-    overall_gain0: '25'
+    overall_gain0: '38'
     overall_gain1: '10'
     pga_gain0: '24'
     pga_gain1: '24'
@@ -1015,6 +1138,7 @@ connections:
 - [blocks_unpack_k_bits_bb_0, '0', digital_correlate_access_code_tag_xx_0, '0']
 - [dc_blocker_xx_0, '0', analog_agc_xx_0, '0']
 - [digital_constellation_decoder_cb_0, '0', digital_diff_decoder_bb_0, '0']
+- [digital_constellation_modulator_0, '0', qtgui_const_sink_x_0_0, '0']
 - [digital_constellation_modulator_0, '0', qtgui_time_sink_x_0, '0']
 - [digital_constellation_modulator_0, '0', soapy_sink_0, '0']
 - [digital_correlate_access_code_tag_xx_0, '0', blocks_pack_k_bits_bb_0, '0']
@@ -1029,13 +1153,12 @@ connections:
 - [epy_block_0, out, digital_crc32_async_bb_1, in]
 - [epy_block_1, out, digital_crc32_async_bb_0, in]
 - [epy_block_2, payload_out, blocks_message_debug_0, print]
-- [epy_block_3, out, blocks_message_debug_1, print]
 - [epy_block_3, out, pdu_pdu_to_tagged_stream_0, pdus]
 - [network_socket_pdu_0, pdus, epy_block_1, in]
 - [pdu_pdu_to_tagged_stream_0, '0', digital_constellation_modulator_0, '0']
-- [pdu_tagged_stream_to_pdu_0, pdus, blocks_message_debug_2, print]
 - [pdu_tagged_stream_to_pdu_0, pdus, epy_block_0, in]
 - [soapy_source_0, '0', dc_blocker_xx_0, '0']
+- [soapy_source_0, '0', qtgui_waterfall_sink_x_0, '0']
 
 metadata:
   file_format: 1
