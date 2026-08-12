@@ -1,0 +1,31 @@
+Looking at your `.grc`, here's what's actually in it right now:
+
+- **TX side**: UDP socket (`network_socket_pdu`, port 52001) → Add Header (dest/src ID) → CRC32 → Preamble+Pad → QPSK modulator → currently split to a **simulated channel model** *and* a disabled `soapy_sink`.
+- **RX side**: currently fed only by that simulated channel (the `soapy_source` block is also disabled) → Costas/symbol sync → demod → access-code correlator → Header Trim → CRC check → Address Filter/ACK block, which prints decoded text and, if it's a real payload, auto-generates and transmits an ACK frame back over the air.
+
+So the link layer (framing, addressing, CRC, ACK generation) already exists — you're running in loopback simulation, not on real hardware yet, and there's actually a gap: **nothing sends the decoded message or the received ACK back out to your Python app**. `arq_sender.py` listens on UDP 52002 for an "ACK", but nothing in the flowgraph ever sends anything to port 52002 — it only prints to the GRC console.
+
+## The method
+
+**1. Bridge GRC → Python (missing piece)**
+Add a second `network_socket_pdu` block, type `UDP_CLIENT`, host `127.0.0.1`, port `52002`. Wire it from the *Address Filter & ACK* block's `payload_out` port (same place `blocks_message_debug` is fed — message ports support fan-out to multiple destinations, so just add the extra wire).
+
+Then edit that block's Python so it publishes to `payload_out` on **both** branches, not just the non-ACK one — right now the ACK branch only does a `print()`. Add one line before the `sys.stdout.write` in the `else:` clause:
+```python
+self.message_port_pub(pmt.mp("payload_out"), pmt.cons(meta, pmt.init_u8vector(3, [0x41,0x43,0x4B])))
+```
+Now both a received chat message *and* a received ACK get forwarded to your app over UDP 52002 — your app just needs to tell them apart (text == `"ACK"` vs. anything else).
+
+**2. Switch from simulation to the physical bladeRF**
+- Enable `soapy_source_0` and `soapy_sink_0` (both are currently disabled).
+- Set `dev`/`devname` to `driver=bladerf` on both (the sink is currently `driver=uhd`, the source is `driver=rtlsdr` — neither is your board).
+- Disable `channels_channel_model_0` (and `blocks_throttle2_0` feeding from it) so the RX chain only listens to `soapy_source_0`, not the simulated channel — right now both feed the same `dc_blocker` input port, which is fine only because the sim path is the active one.
+- Set matching `center_freq`, TX/RX antenna ports, and gains appropriate for your bladeRF (start conservative, e.g. TX gain ~0–10 dB, RX gain with AGC off since you already have `analog_agc_xx` downstream).
+
+**3. Two nodes, mirrored config**
+Run the same flowgraph on each machine/bladeRF, with `dest_id`/`src_id`/`my_id` swapped (Node A: `src_id=1, dest_id=2, my_id=1`; Node B: `src_id=2, dest_id=1, my_id=2`). Same center frequency on both, since it's a simplex-alternating link (guard-time sleeps in your sender already handle turnaround).
+
+**4. Application layer**
+Your `arq_sender.py` already has the right idea (stop-and-wait, retries, guard time) but only sends — it doesn't display incoming chat from the peer, and it can't yet receive real ACKs since the bridge didn't exist. I combined send + receive into one interactive script:Run one instance per node (`python3 chat.py` alongside each node's GRC flowgraph). Type a message on either side — it goes out over the bladeRF, the peer's flowgraph decodes it, auto-ACKs over the air, and both the decoded text and the ACK come back to the correct app instance via the UDP bridge.
+
+Want me to actually edit the `.grc` file for you (add the bridge block, flip the `soapy_*` blocks to bladeRF, disable the channel model) and hand back a ready-to-run version for each node?
