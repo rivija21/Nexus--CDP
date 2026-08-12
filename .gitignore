@@ -1,0 +1,19 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment and Secrets (Strictly Exclude)
+.env
+*.pem
+*.key
+
+# GNU Radio Auto-generated Files
+# Modify this if you name your flowgraph generation files differently
+top_block.py
+
+# IDE and OS configurations
+.vscode/
+.idea/
+.DS_Store
+*.swp
