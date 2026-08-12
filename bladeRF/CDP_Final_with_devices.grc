@@ -227,7 +227,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1480, 432.0]
+    coordinate: [1648, 392.0]
     rotation: 0
     state: enabled
 - name: digital_constellation_modulator_0
@@ -286,7 +286,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1416, 184.0]
+    coordinate: [1416, 216.0]
     rotation: 0
     state: enabled
 - name: digital_crc32_async_bb_0
@@ -335,7 +335,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1632, 520.0]
+    coordinate: [1696, 488.0]
     rotation: 180
     state: enabled
 - name: digital_map_bb_0
@@ -670,8 +670,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1584, 352.0]
-    rotation: 180
+    coordinate: [1704, 240.0]
+    rotation: 0
     state: enabled
 - name: qtgui_const_sink_x_0_0
   id: qtgui_const_sink_x
@@ -940,7 +940,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [944, 160.0]
+    coordinate: [1320, 104.0]
     rotation: 0
     state: enabled
 - name: qtgui_waterfall_sink_x_0
@@ -1055,7 +1055,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1376, 20.0]
+    coordinate: [1512, 12.0]
     rotation: 0
     state: enabled
 - name: soapy_source_0
