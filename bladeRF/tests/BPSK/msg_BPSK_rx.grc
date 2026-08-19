@@ -53,7 +53,7 @@ blocks:
   id: variable
   parameters:
     comment: ''
-    value: 433e6
+    value: 915e6
   states:
     bus_sink: false
     bus_source: false
@@ -83,18 +83,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [200, 12]
-    rotation: 0
-    state: enabled
-- name: samp_rate_0
-  id: variable
-  parameters:
-    comment: ''
-    value: 2e6
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [328, 24.0]
     rotation: 0
     state: enabled
 - name: sps
@@ -136,25 +124,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [2008, 320.0]
-    rotation: 0
-    state: enabled
-- name: blocks_null_sink_0
-  id: blocks_null_sink
-  parameters:
-    affinity: ''
-    alias: ''
-    bus_structure_sink: '[[0,],]'
-    comment: ''
-    num_inputs: '1'
-    type: byte
-    vlen: '1'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [1504, 328.0]
-    rotation: 0
+    coordinate: [672, 512.0]
+    rotation: 180
     state: enabled
 - name: blocks_repack_bits_bb_0
   id: blocks_repack_bits_bb
@@ -173,8 +144,8 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1664, 392.0]
-    rotation: 0
+    coordinate: [896, 520.0]
+    rotation: 180
     state: enabled
 - name: digital_constellation_decoder_cb_0
   id: digital_constellation_decoder_cb
@@ -189,7 +160,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1240, 328.0]
+    coordinate: [1208, 344.0]
     rotation: 0
     state: enabled
 - name: digital_correlate_access_code_xx_ts_0
@@ -203,13 +174,13 @@ blocks:
     minoutbuf: '0'
     tagname: '"sync"'
     threshold: '2'
-    type: float
+    type: byte
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1376, 448.0]
-    rotation: 0
+    coordinate: [1144, 512.0]
+    rotation: 180
     state: enabled
 - name: digital_costas_loop_cc_0
   id: digital_costas_loop_cc
@@ -226,7 +197,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [968, 280.0]
+    coordinate: [904, 248.0]
     rotation: 0
     state: enabled
 - name: digital_symbol_sync_xx_0
@@ -253,7 +224,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [576, 260.0]
+    coordinate: [536, 196.0]
     rotation: 0
     state: enabled
 - name: fir_filter_xxx_0
@@ -272,7 +243,38 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [352, 296.0]
+    coordinate: [344, 248.0]
+    rotation: 0
+    state: enabled
+- name: iio_pluto_source_0
+  id: iio_pluto_source
+  parameters:
+    affinity: ''
+    alias: ''
+    bandwidth: '20000000'
+    bbdc: 'True'
+    buffer_size: '32768'
+    comment: ''
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: int(freq)
+    fstop: '0'
+    gain1: '''slow_attack'''
+    len_tag_key: packet_len
+    manual_gain1: '64'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quadrature: 'True'
+    rfdc: 'True'
+    samplerate: int(samp_rate)
+    type: fc32
+    uri: ip:192.168.1.10
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [96, 180.0]
     rotation: 0
     state: enabled
 - name: qtgui_const_sink_x_0
@@ -364,83 +366,12 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1304, 184.0]
-    rotation: 0
-    state: enabled
-- name: soapy_source_0
-  id: soapy_source
-  parameters:
-    affinity: ''
-    agc0: 'False'
-    agc1: 'False'
-    alias: ''
-    amp_gain0: '0'
-    ant0: RX
-    ant1: RX2
-    balance0: '0'
-    balance1: '0'
-    bw0: '0'
-    bw1: '0'
-    center_freq0: freq
-    center_freq1: '0'
-    clock_rate: '0'
-    clock_source: ''
-    comment: ''
-    correction0: '0'
-    correction1: '0'
-    dc_offset0: '0'
-    dc_offset1: '0'
-    dc_removal0: 'True'
-    dc_removal1: 'True'
-    dev: driver=rtlsdr
-    dev_args: driver=bladerf
-    devname: bladerf
-    gain_mode0: Overall
-    gain_mode1: Overall
-    ifgr_gain: '59'
-    lna_gain0: '10'
-    lna_gain1: '10'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    mix_gain0: '10'
-    nchan: '1'
-    nco_freq0: '0'
-    nco_freq1: '0'
-    overall_gain0: '40'
-    overall_gain1: '10'
-    pga_gain0: '24'
-    pga_gain1: '24'
-    rf_gain0: '18'
-    rfgr_gain: '9'
-    rxvga1_gain: '5'
-    rxvga2_gain: '0'
-    samp_rate: samp_rate
-    sdrplay_agc_setpoint: '-30'
-    sdrplay_biastee: 'False'
-    sdrplay_dabnotch: 'False'
-    sdrplay_if_mode: Zero-IF
-    sdrplay_rfnotch: 'False'
-    settings0: ''
-    settings1: ''
-    stream_args: ''
-    tia_gain0: '0'
-    tia_gain1: '0'
-    tune_args0: ''
-    tune_args1: ''
-    tuner_gain0: '10'
-    type: sc8
-    vga_gain0: '10'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [56, 236.0]
+    coordinate: [1200, 224.0]
     rotation: 0
     state: enabled
 
 connections:
 - [blocks_repack_bits_bb_0, '0', blocks_file_sink_0, '0']
-- [digital_constellation_decoder_cb_0, '0', blocks_null_sink_0, '0']
 - [digital_constellation_decoder_cb_0, '0', digital_correlate_access_code_xx_ts_0,
   '0']
 - [digital_correlate_access_code_xx_ts_0, '0', blocks_repack_bits_bb_0, '0']
@@ -448,7 +379,7 @@ connections:
 - [digital_costas_loop_cc_0, '0', qtgui_const_sink_x_0, '0']
 - [digital_symbol_sync_xx_0, '0', digital_costas_loop_cc_0, '0']
 - [fir_filter_xxx_0, '0', digital_symbol_sync_xx_0, '0']
-- [soapy_source_0, '0', fir_filter_xxx_0, '0']
+- [iio_pluto_source_0, '0', fir_filter_xxx_0, '0']
 
 metadata:
   file_format: 1

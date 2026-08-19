@@ -24,7 +24,7 @@ options:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [376, 200.0]
+    coordinate: [384, 552.0]
     rotation: 0
     state: enabled
 
@@ -38,7 +38,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [544, 232.0]
+    coordinate: [552, 584.0]
     rotation: 0
     state: enabled
 - name: samp_rate
@@ -50,7 +50,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [280, 224.0]
+    coordinate: [288, 576.0]
     rotation: 0
     state: enabled
 - name: variable_constellation_0
@@ -70,7 +70,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [120, 216.0]
+    coordinate: [128, 568.0]
     rotation: 0
     state: enabled
 - name: digital_constellation_modulator_0

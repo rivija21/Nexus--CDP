@@ -134,30 +134,6 @@ blocks:
     coordinate: [464, 256.0]
     rotation: 0
     state: enabled
-- name: soapy_rtlsdr_source_0
-  id: soapy_rtlsdr_source
-  parameters:
-    affinity: ''
-    agc: 'False'
-    alias: ''
-    bias: 'False'
-    bufflen: '16384'
-    center_freq: freq
-    comment: ''
-    dev_args: ''
-    freq_correction: '0'
-    gain: '20'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    samp_rate: samp_rate
-    type: fc32
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [240, 168.0]
-    rotation: 0
-    state: enabled
 - name: soapy_source_0
   id: soapy_source
   parameters:
@@ -184,8 +160,8 @@ blocks:
     dc_removal0: 'True'
     dc_removal1: 'True'
     dev: driver=rtlsdr
-    dev_args: driver=bladerf
-    devname: bladerf
+    dev_args: ''
+    devname: rtlsdr
     gain_mode0: Overall
     gain_mode1: Overall
     ifgr_gain: '59'
@@ -197,7 +173,7 @@ blocks:
     nchan: '1'
     nco_freq0: '0'
     nco_freq1: '0'
-    overall_gain0: '40'
+    overall_gain0: '10'
     overall_gain1: '10'
     pga_gain0: '24'
     pga_gain1: '24'
@@ -225,12 +201,11 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [152, 284.0]
+    coordinate: [104, 252.0]
     rotation: 0
-    state: disabled
+    state: enabled
 
 connections:
-- [soapy_rtlsdr_source_0, '0', qtgui_freq_sink_x_0, '0']
 - [soapy_source_0, '0', qtgui_freq_sink_x_0, '0']
 
 metadata:
