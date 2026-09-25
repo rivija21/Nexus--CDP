@@ -69,6 +69,7 @@ const STATE = {
   received: {icon:'&#8595;',          cls:'ok',      title:'received'},
   receiving:{icon:'&#8942;',          cls:'pending', title:'receiving'},
   failed:   {icon:'&#9888;',          cls:'bad',     title:'no acknowledgement after every retry'},
+  incomplete:{icon:'&#9888;',         cls:'bad',     title:'the sender stopped before the file was complete'},
   corrupt:  {icon:'&#9888;',          cls:'bad',     title:'reassembled but the CRC did not match'}
 };
 
@@ -405,13 +406,29 @@ function sendText(){
   post('/api/send', JSON.stringify({text:t}), {'Content-Type':'application/json'})
     .catch(() => addLog('send failed - is the flowgraph running?'));
 }
+const MAX_UPLOAD = 8 * 1024 * 1024;      // bpsk_app.MAX_UPLOAD
+let localId = 0;
+function localNote(text, level){
+  render({id:'local' + (++localId), dir:'sys', kind:'system',
+          level: level || 'warn', text: text, ts: Date.now()/1000});
+}
 function sendFiles(list){
   [...list].forEach(f => {
     if(S.demo) return demoFile(f);
+    if(f.size > MAX_UPLOAD){
+      localNote(f.name + ' is ' + bytes(f.size) + ' - attachments are limited to ' +
+                bytes(MAX_UPLOAD));
+      return;
+    }
+    // Header values must be Latin-1, so the name is percent-encoded; without
+    // this, a Sinhala, Tamil or emoji filename made fetch() throw.
     f.arrayBuffer().then(buf => post('/api/upload', buf, {
-      'X-Filename': f.name, 'X-Filetype': f.type || 'application/octet-stream',
+      'X-Filename': encodeURIComponent(f.name),
+      'X-Filetype': f.type || 'application/octet-stream',
       'Content-Type': 'application/octet-stream'
-    })).catch(() => addLog('upload failed'));
+    })).then(r => {
+      if(r && r.error) localNote('could not attach ' + f.name + ': ' + r.error);
+    }).catch(() => localNote('upload of ' + f.name + ' failed - is the flowgraph running?'));
   });
 }
 
@@ -464,7 +481,7 @@ function startDemo(){
   const t = Date.now()/1000;
   [
     {id:'d1',dir:'sys',kind:'system',level:'info',ts:t-240,
-     text:'link up [r5-applayer] · my_addr=1 peer_addr=2 · frag 256 B · ACK 0.50 s · 5 retries'},
+     text:'link up [r5.2-stable] · my_addr=1 peer_addr=2 · frag 256 B · ACK 0.50 s · 5 retries'},
     {id:'d2',dir:'sys',kind:'system',level:'info',ts:t-236,text:'peer 2 reachable'},
     {id:'d3',dir:'in',kind:'text',nick:'Node B',addr:2,state:'received',ts:t-208,
      text:'Receiver is locked. Constellation is two tight blobs at 45 dB Rx gain.'},
@@ -505,7 +522,7 @@ function startDemo(){
       queued: (k%7===0)?3:0, backlog: 0.021 + 0.012*Math.abs(Math.sin(k/4)),
       pending: (k%7===0)?'file-frag 78':null,
       tx_payload_bytes: 68200+k*400, rx_payload_bytes: 30600+k*260,
-      uptime: 243+k, revision:'r5-applayer', frag_size:256, ack_timeout:0.5,
+      uptime: 243+k, revision:'r5.2-stable', frag_size:256, ack_timeout:0.5,
       max_retries:5, sym_rate:250000, tx_freq:905.2e6, rx_freq:910.2e6
     });
   }, 900);

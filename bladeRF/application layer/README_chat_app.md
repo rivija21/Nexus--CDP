@@ -1,4 +1,4 @@
-# BPSK Link Terminal — application layer
+# BPSK Link Terminal — application layer  ·  `r5.2-stable`
 
 A chat application layer on top of the existing full-duplex FDD BPSK PlutoSDR
 link. The modem, the ARQ and the file protocol are unchanged in behaviour; what
@@ -32,6 +32,8 @@ Events, so nothing has to be installed on the lab machine.
 | `bpsk_offline_demo.py` | new | run both nodes with no radio, over a simulated channel |
 | `test_bpsk_link.py` | extended | two-node loopback test over a lossy virtual channel |
 | `test_shim.py` | new | tests the GRC block with `pmt`/`gr` stubbed out |
+| `test_shutdown.py` | new in r5.1 | shutdown-path regression test: the watchdog and the UI server must not outlive `stop()` |
+| `test_regressions.py` | **new in r5.2** | one reproduction per defect fixed in r5.2; fails on r5.1, passes on r5.2 |
 
 All of them must sit in the same directory.
 
@@ -85,6 +87,8 @@ the layout, not for testing the link.
 ```
 python3 test_bpsk_link.py     # two nodes, 15% frame loss, text + image + receipts
 python3 test_shim.py          # GRC block, EVM estimator, server lifecycle
+python3 test_shutdown.py      # teardown must be clean
+python3 test_regressions.py   # the r5.2 fixes, one scenario each
 ```
 
 ## What the UI shows
@@ -192,3 +196,139 @@ symbol amplitude collapses the reading is cleared rather than left stale.
 The server and the watchdog thread still start on the first tick, not in
 `__init__`, so GRC's validation pass never binds the port. `stop()` releases
 it, so the flowgraph can be restarted without an "address already in use".
+
+
+---
+
+# r5.1-stable — what changed and why
+
+A stabilisation release over `r5-applayer`. **No wire-format change**: `WIRE_COMPAT`
+is still `r5`, so an r5.1 node interoperates with an r5 node. The banner will show
+different `REVISION` strings — that is expected and is not a mismatch.
+
+## The crash
+
+The symptom was an intermittent GNU Radio crash with the browser showing
+`radio process not reachable - reconnecting...` in red. That banner is
+`EventSource.onerror` in the UI — it means the HTTP server stopped answering,
+which means the flowgraph process died. It was never a radio fault.
+
+**Cause 1 — the watchdog outlived `stop()`.** `_watchdog_loop` ran `while True:`
+and `stop()` never signalled it, so it kept calling `message_port_pub` while the
+runtime destroyed the block. Worse than a race: `stop()` freezes `_last_strobe`,
+so the watchdog *engages* 250 ms into teardown and then publishes at 100 Hz.
+Measured before the fix: **38 port publishes in the 600 ms after `stop()`**.
+After: **0**.
+
+**Cause 2 — a late message resurrected the block.** `stop()` set
+`_server = None`, which `_ensure_running()` could not distinguish from "never
+started", so any in-flight `rx_frame`, `tick` or `chat_in` re-bound the TCP port
+and restarted the watchdog mid-teardown.
+
+Both are fixed by a single `threading.Event` (`_halt`) that `stop()` sets first
+and that every publish, handler and resource acquisition checks. `stop()` now
+joins the watchdog before releasing anything, and is idempotent.
+
+## Diagnosis was impossible before
+
+`catch_exceptions` was `True` on the Options block, so **any** Python fault
+stopped the flowgraph silently — no traceback, window still open but dead, HTTP
+server gone, red banner. Every distinct bug presented identically. It is now
+`False`: a fault prints a traceback naming the file and line.
+
+## Full fix list
+
+| # | Fix | Evidence |
+|---|---|---|
+| A | Watchdog exits on `stop()` and is joined | 38 → 0 publishes after stop |
+| B | `_halt` guards `_ensure_running` and every handler | late message no longer re-binds the port |
+| C | `catch_exceptions=False` | faults now produce a traceback |
+| D | Attachment staging, fragmenting and queue building moved off the GNU Radio thread | 8 MiB file: **38.45 ms → 0.81 ms** on the radio thread |
+| E | Incomplete multi-part text expires after `PART_TIMEOUT` (60 s) | `_rx_parts` 1 → 0 entries, operator told |
+| F | Attachment token map bounded at `MAX_FILE_TOKENS` (1000) | 1250 registered → 1000 held |
+| G | `rx_payload_bytes` counted after the duplicate check | duplicate frame: 200 B → 100 B |
+| H | `pmt.intern` results cached; `_dispatch` runs up to 100 Hz | one allocation instead of one per publish |
+| I | Inbound transfers keyed by source (`_rx_msgs`) | progress cannot be attributed to the wrong entry |
+
+### D in detail
+
+`send_file()` used to fragment the blob and build every transmit-queue entry on
+the GNU Radio thread, inside the block lock. For an 8 MiB attachment that is
+33 028 entries and ~38 ms — against a `queue_ahead` cushion of 30 ms and a Pluto
+sink buffer of 8.19 ms, so the transmitter starved and the far end lost lock.
+
+Now `ChatApp.submit()` stages to disk, calls `bpsk_link.segment()` and
+`bpsk_link.build_file_items()` **on the calling thread** (an HTTP worker), and
+hands the radio thread a finished list that goes in with one `deque.extend()`.
+`/sendfile` from the console does the same on a one-shot worker thread.
+Radio-thread cost is now flat in file size.
+
+| Attachment | r5 radio thread | r5.1 radio thread |
+|---|---|---|
+| 1 MiB | 5.22 ms | 0.14 ms |
+| 4 MiB | 19.33 ms | 0.40 ms |
+| 8 MiB | 38.45 ms — **underrun** | 0.81 ms |
+
+## Verification
+
+```
+python3 test_bpsk_link.py     # 15 checks - protocol, text, image, receipts
+python3 test_shim.py          # 13 checks - GRC block, EVM, server lifecycle
+python3 test_shutdown.py      # 10 checks - NEW: teardown must be clean
+```
+
+All 38 pass. `test_bpsk_link.py` produces results bit-identical to r5
+(25.77 s simulated, 171 fragments, 73 retransmissions, 0 drops), which is the
+evidence that none of these fixes changed protocol behaviour.
+
+## Not changed
+
+The modem, the framing, the scrambler, the CRC, the ARQ and the addressing are
+untouched. Preamble sizing, multi-node support and windowing are r6 work.
+
+
+---
+
+# r5.2-stable — what changed and why
+
+A second stabilisation release. **No wire-format change**: `WIRE_COMPAT` is still
+`r5`, so r5.2 interoperates with r5 and r5.1. Every r5.1 fix (A–I above) was
+re-verified and holds. The defects below were found by driving scenarios the
+existing tests do not cover; each one is reproduced by `test_regressions.py`,
+which fails on r5.1 and passes on r5.2.
+
+| # | Defect in r5.1 | Seen as | Fix |
+|---|---|---|---|
+| J | FILE_NACK / FILE_DONE went to the **back** of the single TX queue | With a file going each way, the smaller transfer's verdict waited behind the peer's whole upload; the sender gave up after 8 × 3 s and marked a file it had delivered as **failed** — on a perfect channel | Two queues: replies and chat in `txq_hi` (replies at the front), bulk fragments in `txq` |
+| K | Chat text queued behind file fragments | A line typed during a 200 kB upload was delivered **114 s** later | Chat/presence go through `txq_hi` → **0.2 s** |
+| L | Receiver ignored a repeated FILE_END once the file was complete | FILE_DONE lost 6× in a row → sender reports **failed**, file is intact at the receiver | Receiver keeps the last verdict and repeats it |
+| M | FILE_DONE names no transfer | A late verdict could complete the **next** file while its fragments were still queued | OK verdict is accepted only if its CRC matches the current transfer |
+| N | `_purge_file_queue` removed every `file*` label | Our restart/give-up also deleted the NACK/DONE we owed the peer, stalling the other direction | Purge only our own bulk queue |
+| O | In-progress transfer matched on (name, fragment count) only | A new `image.png` after an abandoned one inherited its fragments; one lost fragment became a **CRC failure** instead of a repair round | Match on the metadata blob too (it carries the sender's message id); the abandoned entry is shown as *incomplete* |
+| P | Received files always written to `rx_<name>` | Two pasted screenshots (both `image.png`): the first entry silently showed the **second** picture | `rx_<name>`, then `rx_<name>-2`, … |
+| Q | A failed middle part of a multi-frame text was overwritten by later ACKs | Entry stuck at a single tick for ever | `failed` is sticky for text |
+| R | Untrusted filename / metadata used as-is | A CRC-valid FILE_START with a NUL in the name raised `ValueError` out of `on_rx`; JSON metadata that is not an object raised `AttributeError` | `clean_name()` in the link layer; metadata type-checked |
+| S | Any exception escaping a handler now aborts the process | `catch_exceptions=False` turns one malformed frame into `std::terminate` | Handlers catch at the block boundary, print the full traceback, drop that input, keep running (tracebacks rate-limited) |
+| T | `fetch()` rejects non-Latin-1 header values | Files named in Sinhala, Tamil, CJK or with an emoji could not be attached; the sanitiser also reduced `ඡායාරූපය.png` to `png` | Name percent-encoded by the page, decoded by the server; sanitiser keeps any script |
+| U | Local HTTP server accepted any origin and any Host | Any web page open in the same browser could transmit on air (text/plain POST, no preflight); a DNS-rebinding page could read `/api/state` | Host must be loopback; POSTs with a foreign `Origin` refused; attachments served with `Content-Security-Policy: sandbox` and an RFC 5987 filename |
+| V | `/stats` in the GNU Radio edit box printed nothing on the terminal | Fallback console silent when the browser is unavailable | Printed on the terminal as well as in the transcript |
+
+### Notes
+
+- **`catch_exceptions=False` is kept.** It is what surfaces faults outside this
+  block. Inside it, the boundary guard (S) gives the same traceback without
+  taking the radio down.
+- **Queue priority changes behaviour, not protocol.** Stop-and-wait still has
+  one frame in flight; the receiver never depended on chat and file frames
+  being in order, and the sequence space is shared as before. File throughput
+  with no chat traffic is unchanged (the 200 kB transfer in the bidirectional
+  test takes the same 116 s on r5.1 and r5.2).
+- `test_bpsk_link.py` is **not** bit-reproducible run to run: the FILE_START
+  metadata carries a wall-clock timestamp, whose JSON length varies, which
+  shifts the modelled airtime slightly. The r5.1 note claiming bit-identical
+  results (25.77 s, 73 retransmissions) holds only for some runs.
+- Not a defect, noted for r6: after a node restarts, its sequence numbers begin
+  again at 0, so if the peer's last-seen sequence from it happened to be 0 the
+  first new frame is ACKed and discarded as a duplicate. In practice that frame
+  is the presence announcement. A per-boot session identifier removes this;
+  the encryption work provides one.

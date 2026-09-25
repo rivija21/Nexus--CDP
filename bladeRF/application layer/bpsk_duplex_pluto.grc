@@ -2,11 +2,11 @@ options:
   parameters:
     alias: ''
     author: Rivija Pesara (framing from Barry Duggan BPSK example)
-    catch_exceptions: 'True'
+    catch_exceptions: 'False'
     comment: ''
     copyright: ''
     description: Full-duplex FDD BPSK link with addressing, stop-and-wait ARQ and a browser chat application
-      layer
+      layer (r5.2-stable)
     gen_linking: dynamic
     generate_options: qt_gui
     generator_class_name: PythonQtGuiGenerator
@@ -656,129 +656,153 @@ blocks:
 - name: link_layer
   id: epy_block
   parameters:
-    _source_code: "\"\"\"GNU Radio shim for the BPSK duplex link layer and chat application.\n\nThree\
-      \ files must sit in the same directory as the flowgraph:\n\n    bpsk_link.py    framing, addressing,\
-      \ stop-and-wait ARQ, file segmentation\n    bpsk_app.py     chat model, delivery receipts, HTTP\
-      \ + SSE server\n    chat_ui.html    the browser front end\n\nThis block owns none of that logic.\
-      \ It converts PMT to bytes, drives the\nstate machine, and measures the recovered constellation\
-      \ so the UI can show\nsignal quality. The chat UI is served on 127.0.0.1:<http_port> and starts\
-      \ on\nthe first tick rather than in __init__, because GRC instantiates this block\nevery time it\
-      \ validates the flowgraph and must not be left holding a socket.\n\nInput port 0 takes the recovered\
-      \ symbol stream (the Costas loop output). It\nis used only for the EVM and level estimates in the\
-      \ status bar; the data path\ndoes not run through this block.\n\"\"\"\n\nimport os\nimport sys\n\
-      import threading\nimport time\n\nimport numpy as np\nimport pmt\nfrom gnuradio import gr\n\n\ndef\
-      \ _load(name):\n    \"\"\"Load a sibling module by absolute path, never by module name.\n\n    GRC\
-      \ validates this block by running exec() on this source in an empty\n    namespace, so there is\
-      \ no __file__ and the working directory is wherever\n    GRC was started. Loading the file directly\
-      \ makes both irrelevant, and\n    swallowing every failure keeps a missing module from painting\
-      \ the block\n    red in the editor - __init__ reports it on the console instead.\n    \"\"\"\n \
-      \   import importlib.util\n\n    if name in sys.modules:\n        return sys.modules[name]\n\n \
-      \   roots = []\n    try:\n        roots.append(os.path.dirname(os.path.abspath(__file__)))\n   \
-      \ except NameError:\n        pass\n    roots.append(os.getcwd())\n    roots.extend([entry for entry\
-      \ in sys.path if entry])\n\n    for root in roots:\n        path = os.path.join(root, name + '.py')\n\
-      \        if not os.path.isfile(path):\n            continue\n        spec = importlib.util.spec_from_file_location(name,\
+    _source_code: "\"\"\"GNU Radio shim for the BPSK duplex link layer and chat application.\n\nThree files must sit in\
+      \ the same directory as the flowgraph:\n\n    bpsk_link.py    framing, addressing, stop-and-wait ARQ,\
+      \ file segmentation\n    bpsk_app.py     chat model, delivery receipts, HTTP + SSE server\n    chat_ui.html\
+      \    the browser front end\n\nThis block owns none of that logic. It converts PMT to bytes, drives the\n\
+      state machine, and measures the recovered constellation so the UI can show\nsignal quality. The chat\
+      \ UI is served on 127.0.0.1:<http_port> and starts on\nthe first tick rather than in __init__, because\
+      \ GRC instantiates this block\nevery time it validates the flowgraph and must not be left holding a\
+      \ socket.\n\nInput port 0 takes the recovered symbol stream (the Costas loop output). It\nis used only\
+      \ for the EVM and level estimates in the status bar; the data path\ndoes not run through this block.\n\
+      \"\"\"\n\nimport os\nimport sys\nimport threading\nimport time\nimport traceback\n\nimport numpy as\
+      \ np\nimport pmt\nfrom gnuradio import gr\n\n\ndef _load(name):\n    \"\"\"Load a sibling module by\
+      \ absolute path, never by module name.\n\n    GRC validates this block by running exec() on this source\
+      \ in an empty\n    namespace, so there is no __file__ and the working directory is wherever\n    GRC\
+      \ was started. Loading the file directly makes both irrelevant, and\n    swallowing every failure keeps\
+      \ a missing module from painting the block\n    red in the editor - __init__ reports it on the console\
+      \ instead.\n    \"\"\"\n    import importlib.util\n\n    if name in sys.modules:\n        return sys.modules[name]\n\
+      \n    roots = []\n    try:\n        roots.append(os.path.dirname(os.path.abspath(__file__)))\n    except\
+      \ NameError:\n        pass\n    roots.append(os.getcwd())\n    roots.extend([entry for entry in sys.path\
+      \ if entry])\n\n    for root in roots:\n        path = os.path.join(root, name + '.py')\n        if\
+      \ not os.path.isfile(path):\n            continue\n        spec = importlib.util.spec_from_file_location(name,\
       \ path)\n        module = importlib.util.module_from_spec(spec)\n        sys.modules[name] = module\n\
-      \        try:\n            spec.loader.exec_module(module)\n        except Exception:\n        \
-      \    sys.modules.pop(name, None)\n            raise\n        return module\n    return None\n\n\n\
-      _load_error = ''\ntry:\n    bpsk_link = _load('bpsk_link')\n    bpsk_app = _load('bpsk_app') if\
-      \ bpsk_link is not None else None\n    if bpsk_app is None:\n        _load_error = 'bpsk_link.py\
-      \ / bpsk_app.py not found next to the flowgraph'\nexcept Exception as _err:            # noqa: BLE001\
-      \ - reported, never raised\n    bpsk_link = bpsk_app = None\n    _load_error = repr(_err)\n\n\n\
-      def _to_text(msg):\n    \"\"\"Accept whatever the QT edit box emits and return a str.\"\"\"\n  \
-      \  try:\n        if pmt.is_symbol(msg):\n            return pmt.symbol_to_string(msg)\n        if\
-      \ pmt.is_pair(msg):\n            val = pmt.cdr(msg)\n            if pmt.is_u8vector(val):\n    \
-      \            return bytes(bytearray(pmt.u8vector_elements(val))).decode(\n                    'utf-8',\
+      \        try:\n            spec.loader.exec_module(module)\n        except Exception:\n            sys.modules.pop(name,\
+      \ None)\n            raise\n        return module\n    return None\n\n\n_load_error = ''\ntry:\n   \
+      \ bpsk_link = _load('bpsk_link')\n    bpsk_app = _load('bpsk_app') if bpsk_link is not None else None\n\
+      \    if bpsk_app is None:\n        _load_error = 'bpsk_link.py / bpsk_app.py not found next to the flowgraph'\n\
+      except Exception as _err:            # noqa: BLE001 - reported, never raised\n    bpsk_link = bpsk_app\
+      \ = None\n    _load_error = repr(_err)\n\n\ndef _to_text(msg):\n    \"\"\"Accept whatever the QT edit\
+      \ box emits and return a str.\"\"\"\n    try:\n        if pmt.is_symbol(msg):\n            return pmt.symbol_to_string(msg)\n\
+      \        if pmt.is_pair(msg):\n            val = pmt.cdr(msg)\n            if pmt.is_u8vector(val):\n\
+      \                return bytes(bytearray(pmt.u8vector_elements(val))).decode(\n                    'utf-8',\
       \ 'replace')\n            if pmt.is_symbol(val):\n                return pmt.symbol_to_string(val)\n\
-      \    except Exception:\n        pass\n    return None\n\n\ndef _to_bytes(msg):\n    \"\"\"Extract\
-      \ the u8vector of a PDU as bytes.\"\"\"\n    try:\n        if pmt.is_pair(msg):\n            val\
-      \ = pmt.cdr(msg)\n            if pmt.is_u8vector(val):\n                return bytes(bytearray(pmt.u8vector_elements(val)))\n\
-      \    except Exception:\n        pass\n    return None\n\n\nclass blk(gr.sync_block):\n    \"\"\"\
-      BPSK chat node: ARQ link layer, application layer and browser UI.\"\"\"\n\n    def __init__(self,\
-      \ my_addr=1, peer_addr=2, ack_timeout=0.5, max_retries=5,\n                 frag_size=256, queue_ahead=0.03,\
-      \ sym_rate=250000.0,\n                 overhead=460, rx_dir='.', nickname='', http_port=8088,\n\
-      \                 open_ui=True, tx_freq=0.0, rx_freq=0.0):\n        gr.sync_block.__init__(self,\
-      \ name='BPSK Chat Node',\n                               in_sig=[np.complex64], out_sig=[])\n  \
-      \      self.http_port = int(http_port)\n        self.open_ui = bool(open_ui)\n        self.app =\
-      \ None\n        self.link = None\n        if bpsk_app is None:\n            print('[chat] ERROR:\
-      \ could not load the protocol modules: %s'\n                  % _load_error, flush=True)\n     \
-      \   else:\n            store = os.path.join(os.path.abspath(rx_dir or '.'), 'chat_files')\n    \
-      \        self.app = bpsk_app.ChatApp(\n                my_addr=my_addr, peer_addr=peer_addr,\n \
-      \               nick=(nickname or ('Node %d' % my_addr)), store_dir=store,\n                ack_timeout=ack_timeout,\
-      \ max_retries=max_retries,\n                frag_size=frag_size, queue_ahead=queue_ahead,\n    \
-      \            sym_rate=sym_rate, overhead=overhead,\n                tx_freq=tx_freq, rx_freq=rx_freq)\n\
-      \            self.link = self.app.link\n\n        for port in ('chat_in', 'rx_frame', 'tick'):\n\
-      \            self.message_port_register_in(pmt.intern(port))\n        for port in ('tx_frame', 'log'):\n\
-      \            self.message_port_register_out(pmt.intern(port))\n        self.set_msg_handler(pmt.intern('chat_in'),\
+      \    except Exception:\n        pass\n    return None\n\n\ndef _to_bytes(msg):\n    \"\"\"Extract the\
+      \ u8vector of a PDU as bytes.\"\"\"\n    try:\n        if pmt.is_pair(msg):\n            val = pmt.cdr(msg)\n\
+      \            if pmt.is_u8vector(val):\n                return bytes(bytearray(pmt.u8vector_elements(val)))\n\
+      \    except Exception:\n        pass\n    return None\n\n\nclass blk(gr.sync_block):\n    \"\"\"BPSK\
+      \ chat node: ARQ link layer, application layer and browser UI.\"\"\"\n\n    def __init__(self, my_addr=1,\
+      \ peer_addr=2, ack_timeout=0.5, max_retries=5,\n                 frag_size=256, queue_ahead=0.03, sym_rate=250000.0,\n\
+      \                 overhead=460, rx_dir='.', nickname='', http_port=8088,\n                 open_ui=True,\
+      \ tx_freq=0.0, rx_freq=0.0):\n        gr.sync_block.__init__(self, name='BPSK Chat Node',\n        \
+      \                       in_sig=[np.complex64], out_sig=[])\n        self.http_port = int(http_port)\n\
+      \        self.open_ui = bool(open_ui)\n        self.app = None\n        self.link = None\n        if\
+      \ bpsk_app is None:\n            print('[chat] ERROR: could not load the protocol modules: %s'\n   \
+      \               % _load_error, flush=True)\n        else:\n            store = os.path.join(os.path.abspath(rx_dir\
+      \ or '.'), 'chat_files')\n            self.app = bpsk_app.ChatApp(\n                my_addr=my_addr,\
+      \ peer_addr=peer_addr,\n                nick=(nickname or ('Node %d' % my_addr)), store_dir=store,\n\
+      \                ack_timeout=ack_timeout, max_retries=max_retries,\n                frag_size=frag_size,\
+      \ queue_ahead=queue_ahead,\n                sym_rate=sym_rate, overhead=overhead,\n                tx_freq=tx_freq,\
+      \ rx_freq=rx_freq)\n            self.link = self.app.link\n\n        for port in ('chat_in', 'rx_frame',\
+      \ 'tick'):\n            self.message_port_register_in(pmt.intern(port))\n        for port in ('tx_frame',\
+      \ 'log'):\n            self.message_port_register_out(pmt.intern(port))\n        self.set_msg_handler(pmt.intern('chat_in'),\
       \ self._on_chat)\n        self.set_msg_handler(pmt.intern('rx_frame'), self._on_rx)\n        self.set_msg_handler(pmt.intern('tick'),\
-      \ self._on_tick)\n\n        self._lock = threading.RLock()\n        self._last_strobe = 0.0\n  \
-      \      self._watchdog = None\n        self._server = None\n        self._meas_t = 0.0\n        self._opened\
-      \ = False\n        if self.link is not None:\n            self._say(self.link.banner())\n\n    #\
-      \ ------------------------------------------------------------ plumbing\n    def _say(self, text):\n\
-      \        for line in str(text).splitlines():\n            print('[link] %s' % line, flush=True)\n\
-      \        self.message_port_pub(pmt.intern('log'),\n                              pmt.string_to_symbol(str(text)))\n\
-      \n    def _dispatch(self, actions):\n        for kind, value in actions:\n            if kind ==\
-      \ 'tx':\n                vec = pmt.init_u8vector(len(value), list(bytearray(value)))\n         \
-      \       self.message_port_pub(pmt.intern('tx_frame'),\n                                      pmt.cons(pmt.PMT_NIL,\
-      \ vec))\n            elif kind == 'log':\n                self._say(value)\n\n    # --------------------------------------------------------------\
+      \ self._on_tick)\n\n        self._lock = threading.RLock()\n        self._last_strobe = 0.0\n      \
+      \  self._watchdog = None\n        self._server = None\n        self._meas_t = 0.0\n        self._opened\
+      \ = False\n        # Set by stop(). Everything that can touch a message port or acquire a\n        #\
+      \ resource checks it first: after stop() the runtime is tearing the\n        # block down, and publishing\
+      \ to a port from a Python thread at that\n        # point is a call into freed C++.\n        self._halt\
+      \ = threading.Event()\n        # With catch_exceptions=False (r5.1) an exception escaping a message\n\
+      \        # handler or work() is not a dead block any more but std::terminate:\n        # the whole process\
+      \ aborts. That made diagnosis possible; it also made\n        # any single malformed frame fatal (measured:\
+      \ a CRC-valid FILE_START\n        # whose name holds a NUL raised ValueError out of on_rx). The handlers\n\
+      \        # now catch at the boundary, print the full traceback - so the\n        # diagnosis is kept\
+      \ - drop that one frame or tick, and carry on.\n        self._faults = 0\n        # Interned once. _dispatch\
+      \ runs up to 100 times a second.\n        self._port_log = pmt.intern('log')\n        self._port_tx\
+      \ = pmt.intern('tx_frame')\n        if self.link is not None:\n            self._say(self.link.banner())\n\
+      \n    # ------------------------------------------------------------ plumbing\n    def _say(self, text):\n\
+      \        for line in str(text).splitlines():\n            print('[link] %s' % line, flush=True)\n  \
+      \      if self._halt.is_set():\n            return\n        self.message_port_pub(self._port_log, pmt.string_to_symbol(str(text)))\n\
+      \n    def _dispatch(self, actions):\n        if self._halt.is_set():\n            return\n        for\
+      \ kind, value in actions:\n            if kind == 'tx':\n                vec = pmt.init_u8vector(len(value),\
+      \ list(bytearray(value)))\n                self.message_port_pub(self._port_tx, pmt.cons(pmt.PMT_NIL,\
+      \ vec))\n            elif kind == 'log':\n                self._say(value)\n\n    def _fault(self, where):\n\
+      \        self._faults += 1\n        n = self._faults\n        if n <= 5 or n % 1000 == 0:\n        \
+      \    print('[chat] INTERNAL ERROR #%d in %s - that input was discarded, '\n                  'the node\
+      \ keeps running:' % (n, where), flush=True)\n            traceback.print_exc()\n            sys.stdout.flush()\n\
+      \            sys.stderr.flush()\n            if n == 5:\n                print('[chat] further tracebacks\
+      \ are printed every 1000th '\n                      'fault only', flush=True)\n            try:\n  \
+      \              self._say('internal error in %s (#%d) - traceback on the '\n                        \
+      \  'terminal' % (where, n))\n            except Exception:\n                pass\n\n    # --------------------------------------------------------------\
       \ startup\n    def _ensure_running(self):\n        \"\"\"Start the UI server and the fallback timer\
       \ on first traffic.\n\n        Deferred out of __init__ so that GRC, which instantiates this block\n\
       \        every time it validates the flowgraph, never binds the port or spawns\n        a thread.\n\
-      \        \"\"\"\n        if self.app is None:\n            return\n        if self._server is None:\n\
-      \            try:\n                self._server, _ = bpsk_app.serve(self.app, self.http_port)\n\
-      \                url = 'http://127.0.0.1:%d/' % self.http_port\n                self._say('chat\
-      \ UI ready at %s  (files in %s)'\n                          % (url, self.app.store_dir))\n     \
-      \           if self.open_ui and not self._opened:\n                    self._opened = True\n   \
-      \                 threading.Thread(target=self._open_browser, args=(url,),\n                   \
-      \                  daemon=True).start()\n            except OSError as exc:\n                self._server\
-      \ = False        # do not retry every 10 ms\n                self._say('could not start the chat\
-      \ UI on port %d: %s'\n                          % (self.http_port, exc))\n        if self._watchdog\
-      \ is None:\n            self._watchdog = threading.Thread(target=self._watchdog_loop,\n        \
-      \                                      daemon=True)\n            self._watchdog.start()\n\n    @staticmethod\n\
-      \    def _open_browser(url):\n        import webbrowser\n        time.sleep(0.7)\n        try:\n\
-      \            webbrowser.open(url)\n        except Exception:\n            pass\n\n    def stop(self):\n\
-      \        \"\"\"Release the port so the flowgraph can be restarted immediately.\"\"\"\n        if\
-      \ self._server:\n            bpsk_app.shutdown(self._server)\n        self._server = None\n    \
-      \    if self.app is not None:\n            self.app.close()\n        return True\n\n    # --------------------------------------------------------\
-      \ message ports\n    def _watchdog_loop(self):\n        \"\"\"Drive on_tick if the Message Strobe\
-      \ stops delivering.\n\n        Every ARQ timer and the transmit filler hang off the tick port. If\
-      \ that\n        port goes quiet the link silently wedges: nothing retransmits, the\n        queue\
-      \ never drains, and the Pluto TX buffer starves. This takes over\n        after 250 ms of silence\
-      \ and stands down if the strobe returns.\n        \"\"\"\n        engaged = False\n        while\
-      \ True:\n            time.sleep(0.01)\n            try:\n                with self._lock:\n    \
-      \                if self.app is None:\n                        continue\n                    if\
-      \ (time.time() - self._last_strobe) < 0.25:\n                        if engaged:\n             \
-      \               engaged = False\n                            self._say('message strobe recovered,\
-      \ watchdog '\n                                      'standing down')\n                        continue\n\
-      \                    if not engaged:\n                        engaged = True\n                 \
-      \       self._say('WARNING: no tick from the Message Strobe '\n                                \
-      \  'block - driving ARQ timers and TX filler '\n                                  'from the fallback\
-      \ thread instead')\n                    self._dispatch(self.app.on_tick(time.time()))\n        \
-      \    except Exception as exc:\n                print('[chat] watchdog error: %r' % (exc,), flush=True)\n\
-      \n    def _on_chat(self, msg):\n        if self.app is None:\n            return\n        text =\
-      \ _to_text(msg)\n        if text is None:\n            return\n        with self._lock:\n      \
-      \      self._ensure_running()\n            self._dispatch(self.app.on_console(text, time.time()))\n\
-      \n    def _on_rx(self, msg):\n        if self.app is None:\n            return\n        raw = _to_bytes(msg)\n\
-      \        if raw is None:\n            return\n        with self._lock:\n            self._ensure_running()\n\
-      \            self._dispatch(self.app.on_rx(raw, time.time()))\n\n    def _on_tick(self, msg):\n\
-      \        if self.app is None:\n            return\n        with self._lock:\n            self._last_strobe\
-      \ = time.time()\n            self._ensure_running()\n            self._dispatch(self.app.on_tick(time.time()))\n\
-      \n    # ------------------------------------------------ constellation quality\n    def work(self,\
-      \ input_items, output_items):\n        \"\"\"Estimate EVM and level from the recovered symbols.\n\
-      \n        The samples are not part of the data path - they are only measured.\n        Decisions\
-      \ are taken on the real axis, which is what a locked\n        differential BPSK receiver produces\
-      \ after the Costas loop, so the\n        residual is everything the modem failed to clean up: noise,\
-      \ timing\n        jitter, and any phase the loop has not tracked out.\n        \"\"\"\n        sym\
-      \ = input_items[0]\n        now = time.time()\n        if self.app is not None and (now - self._meas_t)\
-      \ >= 0.2 and len(sym):\n            self._meas_t = now\n            block = np.asarray(sym[:4096],\
-      \ dtype=np.complex64)\n            power = float(np.mean(np.abs(block) ** 2))\n            amp =\
-      \ float(np.mean(np.abs(block.real)))\n            if amp > 1e-4:\n                err = block -\
-      \ np.sign(block.real) * amp\n                evm = float(np.sqrt(np.mean(np.abs(err) ** 2)) / amp)\n\
-      \                evm = min(max(evm, 1e-3), 10.0)\n                snr = -20.0 * np.log10(evm)\n\
-      \                self.app.set_radio_metrics(\n                    snr_db=round(snr, 2),\n      \
-      \              level_db=round(10.0 * np.log10(power + 1e-12), 1),\n                    evm=round(100.0\
-      \ * evm, 2),\n                    locked=bool(snr > 5.0))\n            else:\n                self.app.set_radio_metrics(snr_db=None,\
-      \ level_db=None,\n                                           evm=None, locked=False)\n        return\
-      \ len(sym)\n"
+      \        \"\"\"\n        if self.app is None or self._halt.is_set():\n            return\n        if\
+      \ self._server is None:\n            try:\n                self._server, _ = bpsk_app.serve(self.app,\
+      \ self.http_port)\n                url = 'http://127.0.0.1:%d/' % self.http_port\n                self._say('chat\
+      \ UI ready at %s  (files in %s)'\n                          % (url, self.app.store_dir))\n         \
+      \       if self.open_ui and not self._opened:\n                    self._opened = True\n           \
+      \         threading.Thread(target=self._open_browser, args=(url,),\n                               \
+      \      daemon=True).start()\n            except OSError as exc:\n                self._server = False\
+      \        # do not retry every 10 ms\n                self._say('could not start the chat UI on port\
+      \ %d: %s'\n                          % (self.http_port, exc))\n        if self._watchdog is None:\n\
+      \            self._watchdog = threading.Thread(target=self._watchdog_loop,\n                       \
+      \                       daemon=True)\n            self._watchdog.start()\n\n    @staticmethod\n    def\
+      \ _open_browser(url):\n        import webbrowser\n        time.sleep(0.7)\n        try:\n          \
+      \  webbrowser.open(url)\n        except Exception:\n            pass\n\n    def stop(self):\n      \
+      \  \"\"\"Stop the watchdog and release the port, in that order.\n\n        Order matters. The watchdog\
+      \ drives on_tick and publishes the frames it\n        produces; left running it keeps calling message_port_pub\
+      \ while the\n        runtime destroys the block. Because stop() also freezes _last_strobe,\n       \
+      \ the watchdog ENGAGES within 250 ms of teardown and then publishes at\n        100 Hz, so this is the\
+      \ steady state during shutdown, not a rare race.\n        \"\"\"\n        self._halt.set()\n       \
+      \ watchdog, self._watchdog = self._watchdog, None\n        if watchdog is not None and watchdog.is_alive():\n\
+      \            watchdog.join(timeout=1.0)\n        server, self._server = self._server, None\n       \
+      \ if server:\n            bpsk_app.shutdown(server)\n        if self.app is not None:\n            self.app.close()\n\
+      \        return True\n\n    # -------------------------------------------------------- message ports\n\
+      \    def _watchdog_loop(self):\n        \"\"\"Drive on_tick if the Message Strobe stops delivering.\n\
+      \n        Every ARQ timer and the transmit filler hang off the tick port. If that\n        port goes\
+      \ quiet the link silently wedges: nothing retransmits, the\n        queue never drains, and the Pluto\
+      \ TX buffer starves. This takes over\n        after 250 ms of silence and stands down if the strobe\
+      \ returns.\n        \"\"\"\n        engaged = False\n        while not self._halt.is_set():\n      \
+      \      if self._halt.wait(0.01):\n                return                      # stop() asked us to leave\n\
+      \            try:\n                with self._lock:\n                    if self.app is None or self._halt.is_set():\n\
+      \                        continue\n                    if (time.time() - self._last_strobe) < 0.25:\n\
+      \                        if engaged:\n                            engaged = False\n                \
+      \            self._say('message strobe recovered, watchdog '\n                                     \
+      \ 'standing down')\n                        continue\n                    if not engaged:\n        \
+      \                engaged = True\n                        self._say('WARNING: no tick from the Message\
+      \ Strobe '\n                                  'block - driving ARQ timers and TX filler '\n        \
+      \                          'from the fallback thread instead')\n                    self._dispatch(self.app.on_tick(time.time()))\n\
+      \            except Exception:\n                self._fault('watchdog')\n\n    def _on_chat(self, msg):\n\
+      \        if self.app is None or self._halt.is_set():\n            return\n        text = _to_text(msg)\n\
+      \        if text is None:\n            return\n        try:\n            with self._lock:\n        \
+      \        self._ensure_running()\n                self._dispatch(self.app.on_console(text, time.time()))\n\
+      \        except Exception:\n            self._fault('chat_in')\n\n    def _on_rx(self, msg):\n     \
+      \   if self.app is None or self._halt.is_set():\n            return\n        raw = _to_bytes(msg)\n\
+      \        if raw is None:\n            return\n        try:\n            with self._lock:\n         \
+      \       self._ensure_running()\n                self._dispatch(self.app.on_rx(raw, time.time()))\n \
+      \       except Exception:\n            self._fault('rx_frame')\n\n    def _on_tick(self, msg):\n   \
+      \     if self.app is None or self._halt.is_set():\n            return\n        try:\n            with\
+      \ self._lock:\n                self._last_strobe = time.time()\n                self._ensure_running()\n\
+      \                self._dispatch(self.app.on_tick(time.time()))\n        except Exception:\n        \
+      \    self._fault('tick')\n\n    # ------------------------------------------------ constellation quality\n\
+      \    def work(self, input_items, output_items):\n        \"\"\"Estimate EVM and level from the recovered\
+      \ symbols.\n\n        The samples are not part of the data path - they are only measured.\n        Decisions\
+      \ are taken on the real axis, which is what a locked\n        differential BPSK receiver produces after\
+      \ the Costas loop, so the\n        residual is everything the modem failed to clean up: noise, timing\n\
+      \        jitter, and any phase the loop has not tracked out.\n        \"\"\"\n        sym = input_items[0]\n\
+      \        now = time.time()\n        if self._halt.is_set():\n            return len(sym)\n        try:\n\
+      \            self._measure(sym, now)\n        except Exception:\n            self._fault('work')\n \
+      \       return len(sym)\n\n    def _measure(self, sym, now):\n        if self.app is not None and (now\
+      \ - self._meas_t) >= 0.2 and len(sym):\n            self._meas_t = now\n            block = np.asarray(sym[:4096],\
+      \ dtype=np.complex64)\n            power = float(np.mean(np.abs(block) ** 2))\n            amp = float(np.mean(np.abs(block.real)))\n\
+      \            if amp > 1e-4:\n                err = block - np.sign(block.real) * amp\n             \
+      \   evm = float(np.sqrt(np.mean(np.abs(err) ** 2)) / amp)\n                evm = min(max(evm, 1e-3),\
+      \ 10.0)\n                snr = -20.0 * np.log10(evm)\n                self.app.set_radio_metrics(\n\
+      \                    snr_db=round(snr, 2),\n                    level_db=round(10.0 * np.log10(power\
+      \ + 1e-12), 1),\n                    evm=round(100.0 * evm, 2),\n                    locked=bool(snr\
+      \ > 5.0))\n            else:\n                self.app.set_radio_metrics(snr_db=None, level_db=None,\n\
+      \                                           evm=None, locked=False)\n"
     ack_timeout: ack_timeout
     affinity: ''
     alias: ''

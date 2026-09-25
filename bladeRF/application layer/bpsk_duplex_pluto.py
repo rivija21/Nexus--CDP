@@ -7,7 +7,7 @@
 # GNU Radio Python Flow Graph
 # Title: BPSK Duplex Link (Pluto, FDD)
 # Author: Rivija Pesara (framing from Barry Duggan BPSK example)
-# Description: Full-duplex FDD BPSK link with addressing, stop-and-wait ARQ and a browser chat application layer
+# Description: Full-duplex FDD BPSK link with addressing, stop-and-wait ARQ and a browser chat application layer (r5.2-stable)
 # GNU Radio version: 3.10.12.0
 
 from PyQt5 import Qt
@@ -38,7 +38,7 @@ from gnuradio import eng_notation
 class bpsk_duplex_pluto(gr.top_block, Qt.QWidget):
 
     def __init__(self, http_port=8088, my_addr=1, nickname='Node A', peer_addr=2, rx_freq=910.2e6, tx_freq=905.2e6, uri='ip:192.168.1.10'):
-        gr.top_block.__init__(self, "BPSK Duplex Link (Pluto, FDD)", catch_exceptions=True)
+        gr.top_block.__init__(self, "BPSK Duplex Link (Pluto, FDD)", catch_exceptions=False)
         Qt.QWidget.__init__(self)
         self.setWindowTitle("BPSK Duplex Link (Pluto, FDD)")
         qtgui.util.check_set_qss()

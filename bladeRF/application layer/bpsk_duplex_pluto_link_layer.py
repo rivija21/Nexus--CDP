@@ -21,6 +21,7 @@ import os
 import sys
 import threading
 import time
+import traceback
 
 import numpy as np
 import pmt
@@ -146,6 +147,22 @@ class blk(gr.sync_block):
         self._server = None
         self._meas_t = 0.0
         self._opened = False
+        # Set by stop(). Everything that can touch a message port or acquire a
+        # resource checks it first: after stop() the runtime is tearing the
+        # block down, and publishing to a port from a Python thread at that
+        # point is a call into freed C++.
+        self._halt = threading.Event()
+        # With catch_exceptions=False (r5.1) an exception escaping a message
+        # handler or work() is not a dead block any more but std::terminate:
+        # the whole process aborts. That made diagnosis possible; it also made
+        # any single malformed frame fatal (measured: a CRC-valid FILE_START
+        # whose name holds a NUL raised ValueError out of on_rx). The handlers
+        # now catch at the boundary, print the full traceback - so the
+        # diagnosis is kept - drop that one frame or tick, and carry on.
+        self._faults = 0
+        # Interned once. _dispatch runs up to 100 times a second.
+        self._port_log = pmt.intern('log')
+        self._port_tx = pmt.intern('tx_frame')
         if self.link is not None:
             self._say(self.link.banner())
 
@@ -153,17 +170,37 @@ class blk(gr.sync_block):
     def _say(self, text):
         for line in str(text).splitlines():
             print('[link] %s' % line, flush=True)
-        self.message_port_pub(pmt.intern('log'),
-                              pmt.string_to_symbol(str(text)))
+        if self._halt.is_set():
+            return
+        self.message_port_pub(self._port_log, pmt.string_to_symbol(str(text)))
 
     def _dispatch(self, actions):
+        if self._halt.is_set():
+            return
         for kind, value in actions:
             if kind == 'tx':
                 vec = pmt.init_u8vector(len(value), list(bytearray(value)))
-                self.message_port_pub(pmt.intern('tx_frame'),
-                                      pmt.cons(pmt.PMT_NIL, vec))
+                self.message_port_pub(self._port_tx, pmt.cons(pmt.PMT_NIL, vec))
             elif kind == 'log':
                 self._say(value)
+
+    def _fault(self, where):
+        self._faults += 1
+        n = self._faults
+        if n <= 5 or n % 1000 == 0:
+            print('[chat] INTERNAL ERROR #%d in %s - that input was discarded, '
+                  'the node keeps running:' % (n, where), flush=True)
+            traceback.print_exc()
+            sys.stdout.flush()
+            sys.stderr.flush()
+            if n == 5:
+                print('[chat] further tracebacks are printed every 1000th '
+                      'fault only', flush=True)
+            try:
+                self._say('internal error in %s (#%d) - traceback on the '
+                          'terminal' % (where, n))
+            except Exception:
+                pass
 
     # -------------------------------------------------------------- startup
     def _ensure_running(self):
@@ -173,7 +210,7 @@ class blk(gr.sync_block):
         every time it validates the flowgraph, never binds the port or spawns
         a thread.
         """
-        if self.app is None:
+        if self.app is None or self._halt.is_set():
             return
         if self._server is None:
             try:
@@ -204,10 +241,21 @@ class blk(gr.sync_block):
             pass
 
     def stop(self):
-        """Release the port so the flowgraph can be restarted immediately."""
-        if self._server:
-            bpsk_app.shutdown(self._server)
-        self._server = None
+        """Stop the watchdog and release the port, in that order.
+
+        Order matters. The watchdog drives on_tick and publishes the frames it
+        produces; left running it keeps calling message_port_pub while the
+        runtime destroys the block. Because stop() also freezes _last_strobe,
+        the watchdog ENGAGES within 250 ms of teardown and then publishes at
+        100 Hz, so this is the steady state during shutdown, not a rare race.
+        """
+        self._halt.set()
+        watchdog, self._watchdog = self._watchdog, None
+        if watchdog is not None and watchdog.is_alive():
+            watchdog.join(timeout=1.0)
+        server, self._server = self._server, None
+        if server:
+            bpsk_app.shutdown(server)
         if self.app is not None:
             self.app.close()
         return True
@@ -222,11 +270,12 @@ class blk(gr.sync_block):
         after 250 ms of silence and stands down if the strobe returns.
         """
         engaged = False
-        while True:
-            time.sleep(0.01)
+        while not self._halt.is_set():
+            if self._halt.wait(0.01):
+                return                      # stop() asked us to leave
             try:
                 with self._lock:
-                    if self.app is None:
+                    if self.app is None or self._halt.is_set():
                         continue
                     if (time.time() - self._last_strobe) < 0.25:
                         if engaged:
@@ -240,36 +289,45 @@ class blk(gr.sync_block):
                                   'block - driving ARQ timers and TX filler '
                                   'from the fallback thread instead')
                     self._dispatch(self.app.on_tick(time.time()))
-            except Exception as exc:
-                print('[chat] watchdog error: %r' % (exc,), flush=True)
+            except Exception:
+                self._fault('watchdog')
 
     def _on_chat(self, msg):
-        if self.app is None:
+        if self.app is None or self._halt.is_set():
             return
         text = _to_text(msg)
         if text is None:
             return
-        with self._lock:
-            self._ensure_running()
-            self._dispatch(self.app.on_console(text, time.time()))
+        try:
+            with self._lock:
+                self._ensure_running()
+                self._dispatch(self.app.on_console(text, time.time()))
+        except Exception:
+            self._fault('chat_in')
 
     def _on_rx(self, msg):
-        if self.app is None:
+        if self.app is None or self._halt.is_set():
             return
         raw = _to_bytes(msg)
         if raw is None:
             return
-        with self._lock:
-            self._ensure_running()
-            self._dispatch(self.app.on_rx(raw, time.time()))
+        try:
+            with self._lock:
+                self._ensure_running()
+                self._dispatch(self.app.on_rx(raw, time.time()))
+        except Exception:
+            self._fault('rx_frame')
 
     def _on_tick(self, msg):
-        if self.app is None:
+        if self.app is None or self._halt.is_set():
             return
-        with self._lock:
-            self._last_strobe = time.time()
-            self._ensure_running()
-            self._dispatch(self.app.on_tick(time.time()))
+        try:
+            with self._lock:
+                self._last_strobe = time.time()
+                self._ensure_running()
+                self._dispatch(self.app.on_tick(time.time()))
+        except Exception:
+            self._fault('tick')
 
     # ------------------------------------------------ constellation quality
     def work(self, input_items, output_items):
@@ -283,6 +341,15 @@ class blk(gr.sync_block):
         """
         sym = input_items[0]
         now = time.time()
+        if self._halt.is_set():
+            return len(sym)
+        try:
+            self._measure(sym, now)
+        except Exception:
+            self._fault('work')
+        return len(sym)
+
+    def _measure(self, sym, now):
         if self.app is not None and (now - self._meas_t) >= 0.2 and len(sym):
             self._meas_t = now
             block = np.asarray(sym[:4096], dtype=np.complex64)
@@ -301,4 +368,3 @@ class blk(gr.sync_block):
             else:
                 self.app.set_radio_metrics(snr_db=None, level_db=None,
                                            evm=None, locked=False)
-        return len(sym)

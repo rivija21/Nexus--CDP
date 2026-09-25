@@ -154,7 +154,7 @@ def main():
     check('delivery states are UI-renderable',
           all(m.get('state') in ('queued', 'sent', 'sending', 'delivered',
                                  'failed', 'received', 'receiving', 'corrupt',
-                                 'info')
+                                 'incomplete', 'info')
               for m in A.messages + B.messages))
     check('telemetry snapshot is JSON-serialisable', _json_ok(A))
 

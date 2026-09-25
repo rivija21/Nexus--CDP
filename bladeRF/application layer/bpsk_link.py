@@ -80,7 +80,8 @@ FT_NAME = {FT_IDLE: 'IDLE', FT_DATA: 'DATA', FT_ACK: 'ACK',
 # Bumped whenever the wire format or the file protocol changes. Printed in the
 # banner so both consoles show which build they are running - a mismatched pair
 # is otherwise indistinguishable from a bad radio link.
-REVISION = 'r5-applayer'
+REVISION = 'r5.2-stable'
+WIRE_COMPAT = 'r5'      # bump only when the on-air format changes
 
 MAX_NACK_INDICES = 120     # fragment indices that fit in one NACK frame
 
@@ -186,6 +187,38 @@ def parse(raw):
             'ack': ack, 'flags': flags, 'payload': payload}
 
 
+def segment(data, frag_size):
+    """Split a blob into fragments and compute its CRC.
+
+    Exposed separately from send_file() so the caller can do this work on its
+    own thread. Done inline on the GNU Radio thread it blocks every message
+    handler, which stops the transmit filler and starves the Pluto TX buffer:
+    measured at 43 ms for an 8 MiB file against a 30 ms queue_ahead cushion.
+    """
+    step = max(1, int(frag_size) - 2)          # 2 bytes of fragment index
+    frags = [data[i:i + step] for i in range(0, len(data), step)] or [b'']
+    return frags, zlib.crc32(data) & 0xFFFFFFFF
+
+
+def build_file_items(size, total, name, meta, crc, frags, mid):
+    """Build the whole transmit-queue item list for one file transfer.
+
+    Module-level and pure, so the caller can do it on its own thread. Building
+    33 000 of these inline on the GNU Radio thread costs ~15 ms, which eats
+    half the queue_ahead cushion on its own.
+    """
+    items = [{'ftype': FT_FILE_START,
+              'payload': pack_file_start(size, total, name, meta),
+              'label': 'file-start', 'mid': mid, 'frag': None}]
+    items.extend({'ftype': FT_FILE_DATA,
+                  'payload': struct.pack('!H', i) + frag,
+                  'label': 'file-frag %d' % i, 'mid': mid, 'frag': i}
+                 for i, frag in enumerate(frags))
+    items.append({'ftype': FT_FILE_END, 'payload': struct.pack('!I', crc),
+                  'label': 'file-end', 'mid': mid, 'frag': None})
+    return items
+
+
 def pack_file_start(size, total, name, meta=b''):
     """Build an r5 FILE_START payload: fixed header, name, metadata blob."""
     name = name.encode('utf-8', 'replace') if isinstance(name, str) else name
@@ -196,6 +229,58 @@ def pack_file_start(size, total, name, meta=b''):
     return (struct.pack('!IH', size, total)
             + bytes([FILE_META_MARK, len(name)]) + name
             + struct.pack('!H', len(meta)) + meta)
+
+
+_BAD_NAME_CHARS = set('<>:"|?*\\/\x7f')
+MAX_NAME_BYTES = 180
+
+
+def clean_name(name):
+    """Make a peer-supplied filename safe to use as a path component.
+
+    The name arrives off the air, so it is untrusted: a NUL makes open() raise
+    ValueError (which, escaping a GNU Radio message handler with
+    catch_exceptions=False, aborts the process), a CR/LF would end up in an
+    HTTP header, and a separator would escape rx_dir. Letters of any script are
+    kept - only separators, control characters and the characters Windows
+    rejects are removed. The extension survives truncation.
+    """
+    if isinstance(name, bytes):
+        name = name.decode('utf-8', 'replace')
+    name = str(name).replace('\\', '/').rsplit('/', 1)[-1]
+    name = ''.join(c for c in name
+                   if c not in _BAD_NAME_CHARS and ord(c) >= 0x20
+                   and not 0x80 <= ord(c) < 0xA0)
+    name = name.strip().lstrip('.').strip()
+    stem, dot, ext = name.rpartition('.')
+    if not dot or len(ext.encode('utf-8')) > 16:
+        stem, ext = name, ''
+    while stem and len((stem + dot + ext).encode('utf-8')) > MAX_NAME_BYTES:
+        stem = stem[:-1]
+    name = (stem + dot + ext) if stem else ext
+    return name or 'unnamed'
+
+
+def unique_path(directory, filename):
+    """directory/filename, or directory/stem-2.ext, -3 ... if that exists.
+
+    Received files used to be written to rx_<name> unconditionally, so two
+    attachments with the same name - every pasted screenshot is 'image.png' -
+    overwrote each other and the first chat entry silently showed the second
+    picture.
+    """
+    path = os.path.join(directory, filename)
+    if not os.path.exists(path):
+        return path
+    stem, dot, ext = filename.rpartition('.')
+    if not dot:
+        stem, ext = filename, ''
+    for n in range(2, 100000):
+        path = os.path.join(directory, '%s-%d%s%s' % (stem, n, dot, ext))
+        if not os.path.exists(path):
+            return path
+    return os.path.join(directory, '%s-%s%s%s' % (stem, os.urandom(4).hex(),
+                                                   dot, ext))
 
 
 def unpack_file_start(payload):
@@ -209,12 +294,11 @@ def unpack_file_start(payload):
     rest = payload[6:]
     if not rest or rest[0] != FILE_META_MARK:
         # r4 node: the remainder is the filename and there is no metadata.
-        name = os.path.basename(rest.decode('utf-8', 'replace')) or 'unnamed'
-        return size, total, name, b''
+        return size, total, clean_name(rest), b''
     if len(rest) < 2:
         return None
     nlen = rest[1]
-    name = os.path.basename(rest[2:2 + nlen].decode('utf-8', 'replace')) or 'unnamed'
+    name = clean_name(rest[2:2 + nlen])
     tail = rest[2 + nlen:]
     meta = b''
     if len(tail) >= 2:
@@ -245,7 +329,16 @@ class LinkState(object):
         self.overhead = int(overhead)
         self.rx_dir = rx_dir
 
+        # Two transmit queues. txq holds the bulk of our own file transfer;
+        # txq_hi holds everything short and time-critical - FILE_NACK and
+        # FILE_DONE replies to the PEER's transfer (at the very front) and chat
+        # frames. With one FIFO, a reply to the peer waited behind every
+        # fragment of our own file, so on a full-duplex link carrying a file in
+        # each direction the peer gave up after 8 x 3 s and reported a file it
+        # had delivered as failed; a chat line typed during an upload waited
+        # for the whole upload (measured: 114 s behind a 200 kB file).
         self.txq = deque()
+        self.txq_hi = deque()
         self.pending = None
         self.tx_seq = 0
         self.last_rx_seq = {}
@@ -253,6 +346,7 @@ class LinkState(object):
         self.peer_seen = 0.0
         self.peer_up = False
         self.rx_file = None
+        self.rx_last = None      # verdict of the last completed inbound file
         self.tx_file = None
         self.max_file_rounds = 8
         self._idle_off = 0
@@ -284,15 +378,31 @@ class LinkState(object):
         self.stats['tx_bytes'] += len(frame)
         out.append(('tx', frame))
 
-    def _enqueue(self, ftype, payload, label, mid=None, frag=None):
-        self.txq.append({'ftype': ftype, 'payload': payload, 'label': label,
-                         'mid': mid, 'frag': frag})
+    def _enqueue(self, ftype, payload, label, mid=None, frag=None,
+                 prio='bulk'):
+        """prio: 'ctl' = front of txq_hi, 'msg' = back of txq_hi, 'bulk' = txq."""
+        item = {'ftype': ftype, 'payload': payload, 'label': label,
+                'mid': mid, 'frag': frag}
+        if prio == 'ctl':
+            self.txq_hi.appendleft(item)
+        elif prio == 'msg':
+            self.txq_hi.append(item)
+        else:
+            self.txq.append(item)
+
+    def queued(self):
+        return len(self.txq_hi) + len(self.txq)
 
     def _pump(self, out, now):
         """Start the next queued frame if the channel is not already busy."""
-        if self.pending is not None or not self.txq:
+        if self.pending is not None:
             return
-        item = self.txq.popleft()
+        if self.txq_hi:
+            item, bulk = self.txq_hi.popleft(), False
+        elif self.txq:
+            item, bulk = self.txq.popleft(), True
+        else:
+            return
         self._tx(out, build(item['ftype'], self.peer_addr, self.my_addr,
                             self.tx_seq, 0, item['payload'], 0, self.tx_seq),
                  now)
@@ -302,10 +412,10 @@ class LinkState(object):
         # however deep the transmit queue happens to be.
         self.pending = dict(item, seq=self.tx_seq,
                             deadline=self.busy_until + self.ack_timeout,
-                            tries=1)
+                            tries=1, bulk=bulk)
         if item['mid'] is not None:
             self._evt(out, e='tx_state', mid=item['mid'], state='sent',
-                      tries=1, frag=item['frag'], queued=len(self.txq))
+                      tries=1, frag=item['frag'], queued=self.queued())
 
     def stats_line(self, now=None):
         s = self.stats
@@ -320,7 +430,7 @@ class LinkState(object):
                 (s['tx_frames'], s['tx_bytes'], s['retx'], s['dropped'],
                  good, s['rx_bad'], per, s['rx_dup'], s['rx_notme'],
                  s['ack_tx'], s['ack_rx'], s['idle_tx'], s['idle_rx'],
-                 len(self.txq), backlog) +
+                 self.queued(), backlog) +
                 ' | frags lost=%d file rounds=%d'
                 % (s['frag_lost'], s['file_rounds']))
 
@@ -329,7 +439,7 @@ class LinkState(object):
         s = dict(self.stats)
         total = s['rx_valid'] + s['rx_bad']
         s['per'] = (100.0 * s['rx_bad'] / total) if total else 0.0
-        s['queued'] = len(self.txq)
+        s['queued'] = self.queued()
         s['backlog'] = max(0.0, self.busy_until - now) if now is not None else 0.0
         s['peer_up'] = self.peer_up
         s['peer_addr'] = self.peer_addr
@@ -347,18 +457,25 @@ class LinkState(object):
         """Queue one opaque application payload as a DATA frame."""
         out = []
         payload = bytes(payload)[:MAX_PAYLOAD]
-        self._enqueue(FT_DATA, payload, label, mid=mid)
+        self._enqueue(FT_DATA, payload, label, mid=mid, prio='msg')
         if mid is not None:
             self._evt(out, e='tx_state', mid=mid, state='queued',
-                      queued=len(self.txq))
+                      queued=self.queued())
         self._pump(out, now)
         return out
 
-    def send_file(self, name, data, now, meta=b'', mid=None):
+    def send_file(self, name, data, now, meta=b'', mid=None, prepared=None,
+                  items=None):
         """Segment an in-memory blob and queue the whole transfer.
 
         Same protocol as /sendfile, but the bytes come from the caller rather
         than from disk, and an opaque metadata blob rides along in FILE_START.
+
+        `prepared` is an optional (fragments, crc32) tuple from segment(). Pass
+        it when the caller has already fragmented the blob on another thread;
+        this entry point then does no bulk work at all. `items` goes further:
+        pass the list from build_file_items() and the transmit queue is filled
+        with a single extend().
         """
         out = []
         if self.tx_file is not None:
@@ -367,8 +484,10 @@ class LinkState(object):
                       reason='busy')
             return out
         name = os.path.basename(name) or 'unnamed'
-        step = self.frag_size - 2                      # 2 bytes fragment index
-        frags = [data[i:i + step] for i in range(0, len(data), step)] or [b'']
+        if prepared is not None:
+            frags, crc = prepared
+        else:
+            frags, crc = segment(data, self.frag_size)
         if len(frags) > 0xFFFF:
             out.append(('log', 'file needs %d fragments, max 65535; '
                                'raise frag_size' % len(frags)))
@@ -376,11 +495,10 @@ class LinkState(object):
                       reason='too many fragments')
             return out
         self.tx_file = {'name': name, 'frags': frags, 'total': len(frags),
-                        'size': len(data),
-                        'crc': zlib.crc32(data) & 0xFFFFFFFF,
+                        'size': len(data), 'crc': crc,
                         'round': 1, 'deadline': None, 'mid': mid,
                         'meta': meta, 'acked': set()}
-        self._queue_whole_file(out)
+        self._queue_whole_file(out, items=items)
         out.append(('log', 'sending %s: %d bytes in %d fragments'
                     % (name, len(data), len(frags))))
         self._evt(out, e='tx_file_start', mid=mid, name=name, size=len(data),
@@ -388,17 +506,13 @@ class LinkState(object):
         self._pump(out, now)
         return out
 
-    def _queue_whole_file(self, out):
+    def _queue_whole_file(self, out, items=None):
         tf = self.tx_file
-        self._enqueue(FT_FILE_START,
-                      pack_file_start(tf['size'], tf['total'], tf['name'],
-                                      tf['meta']),
-                      'file-start', mid=tf['mid'])
-        for i, frag in enumerate(tf['frags']):
-            self._enqueue(FT_FILE_DATA, struct.pack('!H', i) + frag,
-                          'file-frag %d' % i, mid=tf['mid'], frag=i)
-        self._enqueue(FT_FILE_END, struct.pack('!I', tf['crc']), 'file-end',
-                      mid=tf['mid'])
+        if items is None:                  # repair path: rebuild them here
+            items = build_file_items(tf['size'], tf['total'], tf['name'],
+                                     tf['meta'], tf['crc'], tf['frags'],
+                                     tf['mid'])
+        self.txq.extend(items)
 
     def on_user(self, text, now):
         """Operator console entry point: raw text or a slash command."""
@@ -410,7 +524,7 @@ class LinkState(object):
             self._command(out, text, now)
         else:
             data = text.encode('utf-8', 'replace')[:self.frag_size]
-            self._enqueue(FT_DATA, data, 'chat')
+            self._enqueue(FT_DATA, data, 'chat', prio='msg')
             out.append(('log', 'TX -> %d: %s' % (self.peer_addr, text)))
         self._pump(out, now)
         return out
@@ -424,7 +538,7 @@ class LinkState(object):
         elif cmd == '/stats':
             out.append(('log', self.stats_line(now)))
         elif cmd == '/ping':
-            self._enqueue(FT_DATA, b'ping', 'ping')
+            self._enqueue(FT_DATA, b'ping', 'ping', prio='msg')
             out.append(('log', 'TX -> %d: ping' % self.peer_addr))
         elif cmd == '/sendfile':
             self._sendfile(out, arg, now)
@@ -473,8 +587,6 @@ class LinkState(object):
                 self._pump(out, now)
             return out
 
-        self.stats['rx_payload_bytes'] += len(frm['payload'])
-
         # Any data-bearing frame is acknowledged immediately, duplicates
         # included - a duplicate means our previous ACK was lost.
         self._tx(out, build(FT_ACK, frm['src'], self.my_addr, 0, frm['seq'],
@@ -483,6 +595,9 @@ class LinkState(object):
         if self.last_rx_seq.get(frm['src']) == frm['seq']:
             self.stats['rx_dup'] += 1
             return out
+        # Counted AFTER the duplicate check: a duplicate is not goodput, and
+        # counting it here inflated the reported RX rate by the duplicate rate.
+        self.stats['rx_payload_bytes'] += len(frm['payload'])
         self.last_rx_seq[frm['src']] = frm['seq']
         self._deliver(out, frm, now)
         self._pump(out, now)
@@ -494,7 +609,7 @@ class LinkState(object):
             return
         self._evt(out, e='tx_state', mid=done['mid'], state='acked',
                   tries=done['tries'], frag=done['frag'],
-                  queued=len(self.txq))
+                  queued=self.queued())
         tf = self.tx_file
         if tf is not None and done['mid'] == tf['mid'] and done['frag'] is not None:
             tf['acked'].add(done['frag'])
@@ -510,9 +625,30 @@ class LinkState(object):
             if info is None:
                 return
             size, total, name, meta = info
-            if (self.rx_file is not None and self.rx_file['name'] == name
-                    and self.rx_file['total'] == total):
+            rf = self.rx_file
+            if (rf is not None and rf['src'] == src and rf['name'] == name
+                    and rf['total'] == total and rf['meta'] == meta):
                 return          # repair round for a transfer already in progress
+            last = self.rx_last
+            if (meta and last is not None and last['src'] == src
+                    and last['name'] == name and last['total'] == total
+                    and last['meta'] == meta):
+                return          # header of a transfer that already completed
+            if rf is not None:
+                # A different transfer is starting while an older one is still
+                # incomplete: the sender gave up on it. Its fragments must not
+                # be reused - r5.1 matched only (name, fragment count), so a
+                # second 'image.png' of similar size inherited the first one's
+                # fragments and a single lost fragment became a CRC failure
+                # instead of a repair round. The metadata blob carries the
+                # sender's message id and timestamp, so it tells them apart.
+                out.append(('log', 'incoming file %s from %d abandoned by the '
+                                   'sender (%d of %d fragments)'
+                            % (rf['name'], rf['src'], len(rf['frags']),
+                               rf['total'])))
+                self._evt(out, e='rx_file_abandoned', src=rf['src'],
+                          name=rf['name'], got=len(rf['frags']),
+                          total=rf['total'])
             self.rx_file = {'src': src, 'size': size, 'total': total,
                             'name': name, 'frags': {}, 'meta': meta,
                             'started': now}
@@ -521,13 +657,16 @@ class LinkState(object):
             self._evt(out, e='rx_file_start', src=src, name=name, size=size,
                       total=total, meta=meta)
         elif ftype == FT_FILE_DATA:
-            if self.rx_file is None or len(payload) < 2:
+            if (self.rx_file is None or len(payload) < 2
+                    or src != self.rx_file['src']):
                 return
             idx = struct.unpack('!H', payload[:2])[0]
+            if idx >= self.rx_file['total']:
+                return
             self.rx_file['frags'][idx] = payload[2:]
             got, total = len(self.rx_file['frags']), self.rx_file['total']
             self._evt(out, e='rx_file_progress', name=self.rx_file['name'],
-                      got=got, total=total)
+                      src=self.rx_file['src'], got=got, total=total)
             if total and got % max(1, total // 10) == 0:
                 out.append(('log', '  file %d/%d fragments' % (got, total)))
         elif ftype == FT_FILE_END:
@@ -538,16 +677,31 @@ class LinkState(object):
             self._on_done(out, payload)
 
     def _finish_file(self, out, payload):
+        want = struct.unpack('!I', payload[:4])[0] if len(payload) >= 4 else None
         meta = self.rx_file
         if meta is None:
+            # FILE_END with no transfer open: our FILE_DONE for the file we
+            # just completed was lost and the sender is asking again. r5.1
+            # ignored this, so the sender exhausted its rounds and reported a
+            # file that had arrived intact as failed. Repeat the verdict.
+            last = self.rx_last
+            if last is not None and want is not None and want == last['want']:
+                self._enqueue(FT_FILE_DONE, last['reply'], 'file-done',
+                              prio='ctl')
+                out.append(('log', 'file %s: the sender asked again, repeating '
+                                   'the verdict' % last['name']))
             return
         missing = [i for i in range(meta['total']) if i not in meta['frags']]
         if missing:
             # Tell the sender exactly what is missing and keep what we have.
+            # Replies go to the front of the queue (see txq_hi), and an older
+            # NACK still waiting there is superseded by this one.
             chunk = missing[:MAX_NACK_INDICES]
+            self.txq_hi = deque(i for i in self.txq_hi
+                                if i['label'] != 'file-nack')
             self._enqueue(FT_FILE_NACK,
                           b''.join(struct.pack('!H', i) for i in chunk),
-                          'file-nack')
+                          'file-nack', prio='ctl')
             out.append(('log', 'file %s: %d of %d fragments missing, asking '
                                'the sender to resend %d of them'
                         % (meta['name'], len(missing), meta['total'],
@@ -557,18 +711,20 @@ class LinkState(object):
             return
         self.rx_file = None
         data = b''.join(meta['frags'][i] for i in range(meta['total']))
-        want = struct.unpack('!I', payload[:4])[0] if len(payload) >= 4 else None
         got = zlib.crc32(data) & 0xFFFFFFFF
-        dest = os.path.join(self.rx_dir, 'rx_' + meta['name'])
+        dest = unique_path(self.rx_dir, 'rx_' + meta['name'])
         try:
             with open(dest, 'wb') as fh:
                 fh.write(data)
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             out.append(('log', 'could not write %s: %s' % (dest, exc)))
             dest = None
         ok = (want is None or want == got)
-        self._enqueue(FT_FILE_DONE, struct.pack('!BI', 0 if ok else 1, got),
-                      'file-done')
+        reply = struct.pack('!BI', 0 if ok else 1, got)
+        self.rx_last = {'src': meta['src'], 'name': meta['name'],
+                        'total': meta['total'], 'meta': meta['meta'],
+                        'want': want, 'reply': reply}
+        self._enqueue(FT_FILE_DONE, reply, 'file-done', prio='ctl')
         if ok:
             out.append(('log', 'file %s written, %d bytes, CRC ok'
                         % (dest, len(data))))
@@ -614,12 +770,27 @@ class LinkState(object):
                   missing=len(idxs))
 
     def _on_done(self, out, payload):
-        """Receiver confirmed the file. This is the sender's end-to-end result."""
+        """Receiver confirmed the file. This is the sender's end-to-end result.
+
+        FILE_DONE names no transfer, so a late one could land on the NEXT
+        file and mark it delivered while its fragments were still queued. An
+        OK verdict carries the receiver's CRC of what it reassembled; one that
+        does not match this transfer is a leftover and is ignored.
+        """
         tf = self.tx_file
-        name = tf['name'] if tf else 'file'
-        mid = tf['mid'] if tf else None
-        self.tx_file = None
         status = payload[0] if payload else 1
+        crc = struct.unpack('!I', payload[1:5])[0] if len(payload) >= 5 else None
+        if tf is None:
+            out.append(('log', 'late file report ignored - no transfer in '
+                               'progress'))
+            return
+        if status == 0 and crc is not None and crc != tf['crc']:
+            out.append(('log', 'ignored a report for an earlier file (CRC %08x, '
+                               '%s has %08x)' % (crc, tf['name'], tf['crc'])))
+            return
+        name, mid = tf['name'], tf['mid']
+        self.tx_file = None
+        self._purge_file_queue()        # repeated FILE_ENDs still waiting
         if status == 0:
             out.append(('log', 'peer confirmed %s received complete and '
                                'CRC-correct' % name))
@@ -656,6 +827,13 @@ class LinkState(object):
                   missing=tf['total'])
 
     def _purge_file_queue(self):
+        """Drop what is left of OUR transfer.
+
+        Only the bulk queue. r5.1 filtered every label starting with 'file',
+        which also removed the FILE_NACK / FILE_DONE replies this node owed the
+        peer for the peer's own transfer - a restart or give-up on one
+        direction silently stalled the other.
+        """
         self.txq = deque(item for item in self.txq
                          if not item['label'].startswith('file'))
 
@@ -673,7 +851,7 @@ class LinkState(object):
                 if pending['mid'] is not None:
                     self._evt(out, e='tx_state', mid=pending['mid'],
                               state='failed', tries=pending['tries'],
-                              frag=pending['frag'], queued=len(self.txq))
+                              frag=pending['frag'], queued=self.queued())
                 if label.startswith('file-frag'):
                     # Recoverable: the receiver will name it in its NACK.
                     # Counted rather than logged, so one bad patch of channel
@@ -699,7 +877,7 @@ class LinkState(object):
                 if pending['mid'] is not None:
                     self._evt(out, e='tx_state', mid=pending['mid'],
                               state='retry', tries=pending['tries'],
-                              frag=pending['frag'], queued=len(self.txq))
+                              frag=pending['frag'], queued=self.queued())
         self._pump(out, now)
 
         # Keep the Pluto TX buffer fed so the carrier is continuous and the
@@ -715,7 +893,8 @@ class LinkState(object):
         # peer's verdict. Without this the sender simply falls silent and never
         # learns whether the file arrived.
         tf = self.tx_file
-        if tf is not None and not self.txq and self.pending is None:
+        own_pending = self.pending is not None and self.pending.get('bulk')
+        if tf is not None and not self.txq and not own_pending:
             if tf['deadline'] is None:
                 tf['deadline'] = now + 3.0
             elif now >= tf['deadline']:

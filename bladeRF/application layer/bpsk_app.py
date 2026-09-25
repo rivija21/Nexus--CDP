@@ -38,12 +38,11 @@ travel in the FILE_START metadata blob as compact JSON.
 import json
 import mimetypes
 import os
-import posixpath
 import re
 import struct
 import threading
 import time
-from collections import deque
+from collections import deque, OrderedDict
 
 import bpsk_link as link
 
@@ -58,8 +57,10 @@ PRESENCE_MIN_INTERVAL = 10.0     # seconds between nickname announcements
 STATS_INTERVAL = 0.25            # seconds between telemetry pushes to the UI
 EVENT_BACKLOG = 2000             # SSE events retained for reconnecting clients
 MAX_UPLOAD = 8 * 1024 * 1024     # bytes accepted from the browser in one POST
+MAX_FILE_TOKENS = 1000           # attachment URLs retained; oldest evicted
+PART_TIMEOUT = 60.0              # seconds before an incomplete multi-part text is dropped
 
-_SAFE_NAME = re.compile(r'[^A-Za-z0-9._-]+')
+_SPACES = re.compile(r'\s+')
 
 # set_radio_metrics() has to be able to say "no reading" as well as "unchanged",
 # so an omitted argument and an explicit None mean different things.
@@ -67,9 +68,15 @@ _UNSET = object()
 
 
 def _safe_filename(name):
-    name = posixpath.basename((name or '').replace('\\', '/'))
-    name = _SAFE_NAME.sub('_', name).strip('._') or 'file'
-    return name[:120]
+    """Sanitise a local filename without discarding non-Latin scripts.
+
+    r5.1 kept only [A-Za-z0-9._-], so a Sinhala or Tamil name collapsed to
+    its extension ('<sinhala>.png' -> 'png') and the receiver lost both the
+    name and the type. Separators, control characters and the characters
+    Windows rejects are still removed (bpsk_link.clean_name).
+    """
+    name = _SPACES.sub('_', link.clean_name(name or '').strip())
+    return name if name and name != 'unnamed' else 'file'
 
 
 def pack_envelope(atype, mid, part, parts, nick, body):
@@ -132,13 +139,13 @@ class ChatApp(object):
 
         self.messages = []               # transcript, oldest first
         self._by_mid = {}                # our own message id -> message
-        self._rx_parts = {}              # (src, mid) -> {part: bytes}
-        self._files = {}                 # file token -> absolute path
+        self._rx_parts = {}              # (src, mid) -> {'t': float, 'parts': {}}
+        self._files = OrderedDict()      # file token -> (path, mime), bounded
         self._file_seq = 0
         self._next_mid = 1
         self._pending_file = deque()     # attachments waiting for the radio
         self._active_tx_file = None
-        self._rx_msg = None              # inbound transfer currently reassembling
+        self._rx_msgs = {}               # src -> inbound transfer being reassembled
 
         self.radio = {'snr_db': None, 'level_db': None, 'evm': None,
                       'locked': False, 'ts': 0.0}
@@ -185,15 +192,23 @@ class ChatApp(object):
         self._next_mid = (self._next_mid + 1) & 0xFFFFFFFF or 1
         return mid
 
-    def _register_file(self, path):
+    def _register_file(self, path, mime=None):
         self._file_seq += 1
         token = 'f%d' % self._file_seq
-        self._files[token] = path
+        self._files[token] = (path, mime)
+        while len(self._files) > MAX_FILE_TOKENS:
+            self._files.popitem(last=False)      # oldest attachment URL expires
         return token
 
     def file_path(self, token):
         with self._lock:
-            return self._files.get(token)
+            entry = self._files.get(token)
+        return entry[0] if entry else None
+
+    def file_entry(self, token):
+        """(path, mime) for an attachment URL token, or (None, None)."""
+        with self._lock:
+            return self._files.get(token) or (None, None)
 
     def _add(self, msg):
         with self._lock:
@@ -222,12 +237,58 @@ class ChatApp(object):
 
         Returns the message id so the browser can correlate its optimistic
         bubble with the one the radio thread creates a few milliseconds later.
+
+        An attachment is staged to disk and fragmented HERE, on the calling
+        thread, before anything is handed over. Done on the GNU Radio thread it
+        blocks every message handler, which stops the transmit filler and
+        starves the Pluto TX buffer - measured at 57 ms for an 8 MiB file
+        against a 30 ms queue_ahead cushion.
         """
         with self._lock:
             mid = self._new_mid() if kind in ('text', 'file') else None
+        if kind == 'file':
+            kw = self._prepare_attachment(mid, kw.get('name', 'file'),
+                                          kw.get('mime', ''),
+                                          kw.get('data', b''))
+            if kw is None:
+                return mid
+        with self._lock:
             self._inbox.append(dict(kw, kind=kind, mid=mid))
             self._cv.notify_all()
         return mid
+
+    def _prepare_attachment(self, mid, name, mime, data):
+        """Stage and fragment an attachment. Never call from the radio thread."""
+        name = _safe_filename(name)
+        mime = mime or mimetypes.guess_type(name)[0] or 'application/octet-stream'
+        path = os.path.join(self.store_dir, 'tx_%d_%s' % (mid, name))
+        try:
+            with open(path, 'wb') as fh:
+                fh.write(data)
+        except OSError as exc:
+            self._system('could not stage %s: %s' % (name, exc), 'error')
+            return None
+        frags, crc = link.segment(data, self.link.frag_size)
+        with self._lock:
+            meta = json.dumps({'n': self.nick, 'm': mime, 'i': mid,
+                               't': round(time.time(), 3)},
+                              separators=(',', ':')
+                              ).encode('utf-8')[:link.MAX_FILE_META]
+        items = link.build_file_items(len(data), len(frags), name, meta,
+                                      crc, frags, mid)
+        return {'name': name, 'mime': mime, 'data': data, 'path': path,
+                'frags': frags, 'crc': crc, 'size': len(data),
+                'meta': meta, 'items': items}
+
+    def _sendfile_worker(self, path):
+        """Read and fragment a /sendfile target off the radio thread."""
+        try:
+            with open(path, 'rb') as fh:
+                data = fh.read()
+        except OSError as exc:
+            self._system('could not read %s: %s' % (path, exc), 'error')
+            return
+        self.submit('file', name=os.path.basename(path), mime='', data=data)
 
     def _drain_inbox(self, out, now):
         while True:
@@ -239,9 +300,7 @@ class ChatApp(object):
             if kind == 'text':
                 self._send_text(out, job['mid'], job.get('text', ''), now)
             elif kind == 'file':
-                self._queue_attachment(out, job['mid'], job.get('name', 'file'),
-                                       job.get('mime', ''), job.get('data', b''),
-                                       now)
+                self._queue_attachment(out, job, now)
             elif kind == 'command':
                 self._console(out, job.get('text', ''), now)
             elif kind == 'nick':
@@ -275,27 +334,20 @@ class ChatApp(object):
         for frame in frames:
             self._consume(out, self.link.send_data(frame, now, mid=mid), now)
 
-    def _queue_attachment(self, out, mid, name, mime, data, now):
-        name = _safe_filename(name)
-        mime = mime or mimetypes.guess_type(name)[0] or 'application/octet-stream'
-        path = os.path.join(self.store_dir, 'tx_%d_%s' % (mid, name))
-        try:
-            with open(path, 'wb') as fh:
-                fh.write(data)
-        except OSError as exc:
-            self._system('could not stage %s: %s' % (name, exc), 'error')
-            return
+    def _queue_attachment(self, out, job, now):
+        """Radio thread: register an already-prepared attachment. No bulk work."""
+        mid = job['mid']
         with self._lock:
-            token = self._register_file(path)
+            token = self._register_file(job['path'], job['mime'])
             msg = self._add({'id': mid, 'dir': 'out', 'kind': 'file',
                              'nick': self.nick, 'addr': self.link.my_addr,
                              'state': 'queued', 'tries': 1,
-                             'file': {'name': name, 'mime': mime,
-                                      'size': len(data), 'url': '/file/' + token},
+                             'file': {'name': job['name'], 'mime': job['mime'],
+                                      'size': job['size'],
+                                      'url': '/file/' + token},
                              'progress': {'done': 0, 'total': 0}})
             self._by_mid[mid] = msg
-            self._pending_file.append({'mid': mid, 'name': name, 'mime': mime,
-                                       'data': data})
+            self._pending_file.append(job)
         self._start_next_file(out, now)
 
     def _start_next_file(self, out, now):
@@ -307,11 +359,16 @@ class ChatApp(object):
                 return
             job = self._pending_file.popleft()
             self._active_tx_file = job['mid']
-            meta = json.dumps({'n': self.nick, 'm': job['mime'],
-                               'i': job['mid'], 't': round(time.time(), 3)},
-                              separators=(',', ':')).encode('utf-8')[:link.MAX_FILE_META]
+            meta = job.get('meta') or json.dumps(
+                {'n': self.nick, 'm': job['mime'], 'i': job['mid'],
+                 't': round(time.time(), 3)},
+                separators=(',', ':')).encode('utf-8')[:link.MAX_FILE_META]
+        prepared = ((job['frags'], job['crc'])
+                    if job.get('frags') is not None else None)
         self._consume(out, self.link.send_file(job['name'], job['data'], now,
-                                               meta=meta, mid=job['mid']), now)
+                                               meta=meta, mid=job['mid'],
+                                               prepared=prepared,
+                                               items=job.get('items')), now)
 
     def _announce(self, out, now, force=False):
         """Tell the peer our nickname, at most once every few seconds."""
@@ -349,18 +406,18 @@ class ChatApp(object):
             if not arg or not os.path.isfile(path):
                 self._system('no such file: %s' % (arg or '<none>'), 'warn')
                 return
-            try:
-                with open(path, 'rb') as fh:
-                    data = fh.read()
-            except OSError as exc:
-                self._system('could not read %s: %s' % (path, exc), 'error')
-                return
-            self._queue_attachment(out, self._new_mid(),
-                                   os.path.basename(path), '', data, now)
+            # Reading and fragmenting happen on a worker; this handler is on
+            # the radio thread and must return immediately.
+            threading.Thread(target=self._sendfile_worker, args=(path,),
+                             daemon=True, name='bpsk-sendfile').start()
         elif cmd in ('/stats', '/help', '/ping'):
             for action in self.link.on_user(text, now):
                 if action[0] == 'log':
+                    # Both places: the transcript, and the terminal - the GNU
+                    # Radio edit box is the fallback console for when the
+                    # browser is not available, and r5.1 printed nothing there.
                     self._system(action[1])
+                    out.append(action)
                 elif action[0] == 'evt':
                     self._on_link_event(out, action[1], now)
                 else:
@@ -378,7 +435,9 @@ class ChatApp(object):
         if text.startswith('/'):
             self._console(out, text, now)
         else:
-            self._send_text(out, self._new_mid(), text, now)
+            with self._lock:
+                mid = self._new_mid()
+            self._send_text(out, mid, text, now)
         return out
 
     def on_rx(self, raw, now):
@@ -391,8 +450,25 @@ class ChatApp(object):
         self._drain_inbox(out, now)
         self._consume(out, self.link.on_tick(now), now)
         self._start_next_file(out, now)
+        self._sweep_rx_parts(now)
         self._push_stats(now)
         return out
+
+    def _sweep_rx_parts(self, now):
+        """Drop multi-part messages whose missing part is never coming.
+
+        A part dropped after max_retries leaves the rest of the message parked
+        in _rx_parts for ever: it never renders and is never freed. Anything
+        untouched for PART_TIMEOUT is abandoned and reported.
+        """
+        with self._lock:
+            stale = [k for k, e in self._rx_parts.items()
+                     if (now - e['t']) > PART_TIMEOUT]
+            for key in stale:
+                entry = self._rx_parts.pop(key)
+                self._system('incomplete message from %d abandoned (%d parts '
+                             'arrived, one never did)' % (key[0], len(entry['parts'])),
+                             'warn')
 
     def set_radio_metrics(self, snr_db=_UNSET, level_db=_UNSET, evm=_UNSET,
                           locked=_UNSET):
@@ -455,6 +531,14 @@ class ChatApp(object):
                                 ev.get('asked', 0)), 'warn')
         elif name == 'rx_file_done':
             self._on_rx_file_done(ev)
+        elif name == 'rx_file_abandoned':
+            with self._lock:
+                msg = self._rx_msgs.pop(ev.get('src'), None)
+                if msg is not None:
+                    self._touch(msg, state='incomplete',
+                                note='the sender stopped after %d of %d '
+                                     'fragments' % (ev.get('got', 0),
+                                                    ev.get('total', 0)))
         elif name == 'tx_file_start':
             with self._lock:
                 msg = self._by_mid.get(ev.get('mid'))
@@ -485,6 +569,14 @@ class ChatApp(object):
                 return
             state = ev.get('state')
             tries = ev.get('tries', 1)
+            if msg.get('kind') == 'text' and msg.get('state') == 'failed':
+                # One part of a multi-frame message was dropped. The receiver
+                # can never reassemble it, so later parts being acknowledged
+                # must not turn the entry back into 'sent' - in r5.1 it sat at
+                # a single tick for ever.
+                if state == 'acked':
+                    msg['acked'] = msg.get('acked', 0) + 1
+                return
             if msg.get('kind') == 'file':
                 # Per-fragment detail would flicker; the progress bar and the
                 # retry counter carry the story instead.
@@ -508,8 +600,13 @@ class ChatApp(object):
                 else:
                     self._touch(msg, state='sent', acked=acked, tries=tries)
             elif state == 'failed':
-                self._touch(msg, state='failed', tries=tries,
-                            note='no acknowledgement after %d attempts' % tries)
+                total = msg.get('frames', 1)
+                note = 'no acknowledgement after %d attempts' % tries
+                if total > 1:
+                    note = ('one of its %d frames was not acknowledged after '
+                            '%d attempts - the message is incomplete at the '
+                            'far end' % (total, tries))
+                self._touch(msg, state='failed', tries=tries, note=note)
 
     def _on_rx_data(self, ev, now):
         src = ev.get('src')
@@ -531,7 +628,9 @@ class ChatApp(object):
             if env['type'] == AT_PRESENCE:
                 return
             key = (src, env['mid'])
-            slot = self._rx_parts.setdefault(key, {})
+            entry = self._rx_parts.setdefault(key, {'t': now, 'parts': {}})
+            entry['t'] = now
+            slot = entry['parts']
             slot[env['part']] = env['body']
             if len(slot) < env['parts']:
                 return
@@ -550,6 +649,8 @@ class ChatApp(object):
                 meta = json.loads(ev['meta'].decode('utf-8', 'replace'))
         except (ValueError, UnicodeDecodeError):
             meta = {}
+        if not isinstance(meta, dict):
+            meta = {}           # valid JSON but not an object: r5.1 raised here
         name = ev.get('name', 'file')
         mime = meta.get('m') or mimetypes.guess_type(name)[0] \
             or 'application/octet-stream'
@@ -565,11 +666,11 @@ class ChatApp(object):
                                       'size': ev.get('size', 0), 'url': None},
                              'progress': {'done': 0,
                                           'total': ev.get('total', 0)}})
-            self._rx_msg = msg
+            self._rx_msgs[ev.get('src')] = msg
 
     def _on_rx_file_progress(self, ev):
         with self._lock:
-            msg = getattr(self, '_rx_msg', None)
+            msg = self._rx_msgs.get(ev.get('src'))
             if msg is None:
                 return
             self._touch(msg, progress={'done': ev.get('got', 0),
@@ -577,10 +678,11 @@ class ChatApp(object):
 
     def _on_rx_file_done(self, ev):
         with self._lock:
-            msg = getattr(self, '_rx_msg', None)
-            self._rx_msg = None
+            msg = self._rx_msgs.pop(ev.get('src'), None)
             path = ev.get('path')
-            token = self._register_file(path) if path else None
+            mime = ((msg.get('file') or {}).get('mime') if msg is not None
+                    else None)
+            token = self._register_file(path, mime) if path else None
             fields = {'state': 'received' if ev.get('ok') else 'corrupt',
                       'note': None if ev.get('ok')
                       else 'CRC mismatch - the file is damaged'}
@@ -676,6 +778,7 @@ class ChatApp(object):
 # --------------------------------------------------------------------------
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer  # noqa: E402
+from urllib.parse import quote, unquote  # noqa: E402
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -721,8 +824,46 @@ class _Handler(BaseHTTPRequestHandler):
             return b''
         return self.rfile.read(length)
 
+    # ------------------------------------------------------------ guarding
+    # The server binds 127.0.0.1, but the browser that talks to it also runs
+    # every other web page the operator opens. Two holes in r5.1:
+    #   * any page could POST to /api/send - a text/plain body is a 'simple'
+    #     request with no CORS preflight, and the body was parsed as JSON
+    #     regardless of Content-Type - so a web page could transmit on air;
+    #   * with no Host check, a DNS-rebinding page could READ /api/state, i.e.
+    #     the whole transcript. Once the link is encrypted, that would be the
+    #     one place the plaintext leaks.
+    _LOOPBACK = ('127.0.0.1', 'localhost', '[::1]', '::1')
+
+    @classmethod
+    def _loopback(cls, hostport):
+        host = hostport.strip().lower()
+        if host.startswith('['):
+            host = host.split(']')[0] + ']'
+        else:
+            host = host.rsplit(':', 1)[0] if host.count(':') == 1 else host
+        return host in cls._LOOPBACK
+
+    def _allowed(self, write=False):
+        host = self.headers.get('Host')
+        if host is not None and not self._loopback(host):
+            self._send(403, b'forbidden host', 'text/plain')
+            return False
+        if write:
+            origin = self.headers.get('Origin')
+            if origin is not None:
+                ok = origin.startswith('http://') and self._loopback(
+                    origin[len('http://'):].split('/', 1)[0])
+                if not ok:
+                    self._send(403, b'cross-origin request refused',
+                               'text/plain')
+                    return False
+        return True
+
     # ------------------------------------------------------------------ GET
     def do_GET(self):
+        if not self._allowed():
+            return
         path = self.path.split('?', 1)[0]
         if path in ('/', '/index.html'):
             return self._serve_ui()
@@ -747,15 +888,24 @@ class _Handler(BaseHTTPRequestHandler):
                         b'bpsk_app.py', 'text/plain')
 
     def _serve_file(self, token):
-        path = self.app.file_path(token.split('/')[0])
+        path, mime = self.app.file_entry(token.split('/')[0])
         if not path or not os.path.isfile(path):
             return self._send(404, b'no such attachment', 'text/plain')
-        ctype = mimetypes.guess_type(path)[0] or 'application/octet-stream'
+        ctype = (mimetypes.guess_type(path)[0] or mime
+                 or 'application/octet-stream')
         with open(path, 'rb') as fh:
             data = fh.read()
         name = os.path.basename(path)
-        self._send(200, data, ctype,
-                   {'Content-Disposition': 'inline; filename="%s"' % name})
+        # http.server encodes headers as Latin-1, so a non-Latin name has to
+        # travel as RFC 5987 filename*; the plain filename is an ASCII fallback.
+        ascii_name = re.sub(r'[^A-Za-z0-9._-]', '_', name) or 'file'
+        self._send(200, data, ctype, {
+            'Content-Disposition': "inline; filename=\"%s\"; filename*=UTF-8''%s"
+                                   % (ascii_name, quote(name, safe='')),
+            # The file came off the air. Opened directly, an HTML or SVG
+            # attachment must not run script in this page's origin.
+            'Content-Security-Policy': 'sandbox',
+            'X-Content-Type-Options': 'nosniff'})
 
     def _serve_events(self):
         # A fresh page gets the whole model in the hello frame, so it starts
@@ -801,13 +951,17 @@ class _Handler(BaseHTTPRequestHandler):
 
     # ----------------------------------------------------------------- POST
     def do_POST(self):
+        if not self._allowed(write=True):
+            return
         path = self.path.split('?', 1)[0]
         if path == '/api/send':
             try:
                 data = json.loads(self._body().decode('utf-8') or '{}')
             except ValueError:
                 return self._json({'error': 'bad json'}, 400)
-            text = (data.get('text') or '').strip()
+            if not isinstance(data, dict):
+                return self._json({'error': 'bad json'}, 400)
+            text = str(data.get('text') or '').strip()
             if not text:
                 return self._json({'error': 'empty'}, 400)
             kind = 'command' if text.startswith('/') else 'text'
@@ -818,10 +972,15 @@ class _Handler(BaseHTTPRequestHandler):
                 data = json.loads(self._body().decode('utf-8') or '{}')
             except ValueError:
                 return self._json({'error': 'bad json'}, 400)
-            self.app.submit('nick', nick=data.get('nick') or '')
+            if not isinstance(data, dict):
+                return self._json({'error': 'bad json'}, 400)
+            self.app.submit('nick', nick=str(data.get('nick') or ''))
             return self._json({'ok': True})
         if path == '/api/upload':
-            name = self.headers.get('X-Filename') or 'file'
+            # The page percent-encodes the name: fetch() refuses any header
+            # value outside Latin-1, so in r5.1 a file named in Sinhala, Tamil,
+            # CJK or with an emoji could not be attached at all.
+            name = unquote(self.headers.get('X-Filename') or 'file')
             mime = self.headers.get('X-Filetype') \
                 or self.headers.get('Content-Type') or ''
             data = self._body()
