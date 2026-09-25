@@ -1,0 +1,116 @@
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="logo">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12h3l2.5-7 4 14 3-9 2 4h5.5"/>
+        </svg>
+      </div>
+      <div class="who">
+        <h1 id="title">BPSK Link Terminal</h1>
+        <div class="sub" id="subtitle">905.2 TX &middot; 910.2 RX MHz &middot; FDD &middot; differential BPSK</div>
+      </div>
+    </div>
+
+    <div class="peer">
+      <span class="peer-av" id="peerAvatar">NB</span>
+      <span class="peer-txt">
+        <span class="peer-name" id="peerName">peer</span>
+        <span class="peer-sub"><span class="led" id="led"></span><span id="peerState">no carrier</span> &middot; <span id="addrs">--</span></span>
+      </span>
+    </div>
+
+    <div class="tiles">
+      <div class="tile" id="tSnr"><span class="k">SNR</span><span class="v">--<small>dB</small></span></div>
+      <div class="tile" id="tLvl"><span class="k">RX level</span><span class="v">--<small>dB</small></span></div>
+      <div class="tile" id="tTx"><span class="k">TX</span><span class="v">0<small>kb/s</small></span></div>
+      <div class="tile" id="tRx"><span class="k">RX</span><span class="v">0<small>kb/s</small></span></div>
+      <div class="tile" id="tPer"><span class="k">Frame err</span><span class="v">0<small>%</small></span></div>
+      <div class="tile" id="tQ"><span class="k">Backlog</span><span class="v">0<small>ms</small></span></div>
+    </div>
+
+    <button class="iconbtn __TOGGLE_CLASS__" id="togglePanel" title="Link telemetry">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 13h4l3-8 4 16 3-8h4"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="banner" id="banner"><span id="bannerText"></span></div>
+
+  <div class="body">
+    <main class="chat">
+      <div class="stream" id="stream"><div class="col" id="col"></div></div>
+      <button class="jump" id="jump">new messages &darr;</button>
+
+      <div class="composer">
+        <div class="cwrap">
+          <textarea id="input" rows="1" placeholder="Message the peer&hellip;   (/help for commands)"></textarea>
+          <button class="iconbtn ghost" id="attach" title="Attach a file">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.4 11.05 12.25 20.2a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.18 5.18l-9.2 9.19a1.83 1.83 0 0 1-2.59-2.59l8.49-8.48"/>
+            </svg>
+          </button>
+          <button class="send" id="send" disabled title="Send">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 12h14M12 6l6 6-6 6"/>
+            </svg>
+          </button>
+        </div>
+        <div class="chint">
+          <span><b>Enter</b> send</span>
+          <span><b>Shift+Enter</b> newline</span>
+          <span><b>/nick</b> rename</span>
+          <span><b>/stats</b> counters</span>
+          <span>drag, drop or paste to attach</span>
+          <span class="cap" id="cap">frag 256 B &middot; ACK 0.50 s &middot; 5 retries &middot; 250 ksym/s</span>
+        </div>
+        <input type="file" id="file" hidden multiple>
+      </div>
+    </main>
+
+    <aside id="panel" class="__PANEL_CLASS__">
+      <div class="pane">
+        <h2>Throughput <span id="thNow">0 / 0 kb/s</span></h2>
+        <div class="legend"><span class="tx">TX goodput</span><span class="rx">RX goodput</span></div>
+        <canvas class="spark" id="sparkTp"></canvas>
+      </div>
+
+      <div class="pane">
+        <h2>Signal quality <span id="snrNow">-- dB</span></h2>
+        <canvas class="spark" id="sparkSnr"></canvas>
+      </div>
+
+      <div class="pane">
+        <h2>ARQ &amp; framing</h2>
+        <div class="grid">
+          <div class="cell"><span class="k">TX frames</span><span class="v" id="cTxF">0</span></div>
+          <div class="cell"><span class="k">RX valid</span><span class="v" id="cRxOk">0</span></div>
+          <div class="cell warn"><span class="k">Retransmits</span><span class="v" id="cRetx">0</span></div>
+          <div class="cell bad"><span class="k">CRC fails</span><span class="v" id="cRxBad">0</span></div>
+          <div class="cell"><span class="k">ACK tx / rx</span><span class="v" id="cAck">0 / 0</span></div>
+          <div class="cell"><span class="k">Duplicates</span><span class="v" id="cDup">0</span></div>
+          <div class="cell bad"><span class="k">Dropped</span><span class="v" id="cDrop">0</span></div>
+          <div class="cell warn"><span class="k">Frags lost</span><span class="v" id="cFrag">0</span></div>
+        </div>
+        <div class="kvs">
+          <div class="kv"><span>frame error rate</span><span id="kPer">0.00 %</span></div>
+          <div class="kv"><span>tx queue depth</span><span id="kQ">0</span></div>
+          <div class="kv"><span>tx backlog</span><span id="kBk">0 ms</span></div>
+          <div class="kv"><span>idle filler tx / rx</span><span id="kIdle">0 / 0</span></div>
+          <div class="kv"><span>file repair rounds</span><span id="kRounds">0</span></div>
+          <div class="kv"><span>in flight</span><span id="kPend">idle</span></div>
+          <div class="kv"><span>payload tx / rx</span><span id="kBytes">0 / 0</span></div>
+          <div class="kv"><span>uptime</span><span id="kUp">0 s</span></div>
+          <div class="kv"><span>link build</span><span id="kRev">--</span></div>
+        </div>
+      </div>
+
+      <div class="pane logpane">
+        <h2>Link log</h2>
+        <div id="log"></div>
+      </div>
+    </aside>
+  </div>
+</div>
