@@ -1,0 +1,1839 @@
+options:
+  parameters:
+    alias: ''
+    author: Rivija Pesara (framing from Barry Duggan BPSK example)
+    catch_exceptions: 'False'
+    comment: ''
+    copyright: ''
+    description: 'Four-node shared-channel BPSK link: CSMA/CA medium access, per-peer ARQ, browser chat
+      (r6b)'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    generator_class_name: PythonQtGuiGenerator
+    generator_module: gnuradio.grc.workflows.python_qt_gui
+    hier_block_src_path: '.:'
+    id: bpsk_csma_pluto
+    max_nouts: '0'
+    output_language: python
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    thread_safe_setters: ''
+    title: BPSK CSMA Chat Node (shared channel, TDD)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 8
+    - 8.0
+    rotation: 0
+    state: enabled
+blocks:
+- name: ack_timeout
+  id: variable
+  parameters:
+    comment: seconds before retransmit
+    value: '0.5'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 24
+    - 376.0
+    rotation: 0
+    state: true
+- name: constel
+  id: variable_constellation
+  parameters:
+    comment: ''
+    const_points: '[-1-1j, -1+1j, 1+1j, 1-1j]'
+    dims: '1'
+    normalization: digital.constellation.AMPLITUDE_NORMALIZATION
+    npwr: '1.0'
+    precision: '8'
+    rot_sym: '4'
+    soft_dec_lut: None
+    sym_map: '[0, 1, 3, 2]'
+    type: bpsk
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 712
+    - 152.0
+    rotation: 0
+    state: enabled
+- name: frag_size
+  id: variable
+  parameters:
+    comment: payload bytes per frame
+    value: '256'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 376
+    - 176.0
+    rotation: 0
+    state: true
+- name: hdr
+  id: variable
+  parameters:
+    comment: ''
+    value: digital.header_format_default(digital.packet_utils.default_access_code, 0)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 824
+    - 32.0
+    rotation: 0
+    state: true
+- name: max_retries
+  id: variable
+  parameters:
+    comment: ''
+    value: '5'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 200
+    - 256.0
+    rotation: 0
+    state: true
+- name: postamble_size
+  id: variable
+  parameters:
+    comment: ''
+    value: '64'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 880
+    - 152.0
+    rotation: 0
+    state: enabled
+- name: preamble_size
+  id: variable
+  parameters:
+    comment: symbols of unmodulated run-in
+    value: '384'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1008
+    - 32.0
+    rotation: 0
+    state: enabled
+- name: queue_ahead
+  id: variable
+  parameters:
+    comment: 0 = no filler; mandatory under CSMA
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 360
+    - 280.0
+    rotation: 0
+    state: true
+- name: rx_gain
+  id: variable_qtgui_range
+  parameters:
+    comment: 'manual, not AGC: AGC would ride our own TX leakage'
+    gui_hint: ''
+    label: Rx Gain (dB)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '1'
+    stop: '73'
+    value: '45'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 712
+    - 244.0
+    rotation: 0
+    state: true
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: '1000000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 24
+    - 272.0
+    rotation: 0
+    state: enabled
+- name: sps
+  id: variable
+  parameters:
+    comment: ''
+    value: '4'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 200
+    - 168.0
+    rotation: 0
+    state: enabled
+- name: tx_atten
+  id: variable_qtgui_range
+  parameters:
+    comment: 'NOTE: attenuation, lower = more power'
+    gui_hint: ''
+    label: Tx Attenuation (dB)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '1'
+    stop: '89'
+    value: '20'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 512
+    - 144.0
+    rotation: 0
+    state: true
+- name: blocks_message_strobe_0
+  id: blocks_message_strobe
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: drives ARQ timers and the TX filler
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    msg: pmt.intern("tick")
+    period: '10'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1368
+    - 336.0
+    rotation: 0
+    state: enabled
+- name: blocks_multiply_const_vxx_0
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    const: '0.5'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 920
+    - 872.0
+    rotation: 0
+    state: true
+- name: blocks_repack_bits_bb_0
+  id: blocks_repack_bits_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    align_output: 'True'
+    comment: ''
+    endianness: gr.GR_MSB_FIRST
+    k: '1'
+    l: '8'
+    len_tag_key: packet_len
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 944
+    - 488.0
+    rotation: 0
+    state: enabled
+- name: blocks_stream_to_tagged_stream_post
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    packet_len: postamble_size
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 344
+    - 1144.0
+    rotation: 0
+    state: enabled
+- name: blocks_stream_to_tagged_stream_pre
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    packet_len: preamble_size
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 208
+    - 736.0
+    rotation: 0
+    state: enabled
+- name: blocks_tagged_stream_mux_0
+  id: blocks_tagged_stream_mux
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: preamble | PHY header | frame | postamble
+    lengthtagname: packet_len
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    ninputs: '4'
+    tag_preserve_head_pos: '0'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 464
+    - 904.0
+    rotation: 0
+    state: enabled
+- name: blocks_vector_source_x_0
+  id: blocks_vector_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Preamble
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    repeat: 'True'
+    tags: '[]'
+    type: byte
+    vector: '[0xc0, 0xaf]'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 8
+    - 728.0
+    rotation: 0
+    state: enabled
+- name: blocks_vector_source_x_0_0
+  id: blocks_vector_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: Postamble
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    repeat: 'True'
+    tags: '[]'
+    type: byte
+    vector: '[0xc0, 0xaf]'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 104
+    - 1136.0
+    rotation: 0
+    state: enabled
+- name: digital_constellation_decoder_cb_0
+  id: digital_constellation_decoder_cb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 216
+    - 496.0
+    rotation: 0
+    state: enabled
+- name: digital_constellation_modulator_0
+  id: digital_constellation_modulator
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel
+    differential: 'True'
+    excess_bw: '0.35'
+    log: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_symbol: sps
+    truncate: 'False'
+    verbose: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 696
+    - 920.0
+    rotation: 0
+    state: enabled
+- name: digital_correlate_access_code_xx_ts_0
+  id: digital_correlate_access_code_xx_ts
+  parameters:
+    access_code: digital.packet_utils.default_access_code
+    affinity: ''
+    alias: ''
+    comment: threshold = bit errors tolerated in the 64-bit access code
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tagname: packet_len
+    threshold: '2'
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 664
+    - 480.0
+    rotation: 0
+    state: enabled
+- name: digital_costas_loop_cc_0
+  id: digital_costas_loop_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    order: len(constel.points())
+    use_snr: 'False'
+    w: 3.14/100
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1464
+    - 1288.0
+    rotation: 0
+    state: enabled
+- name: digital_diff_decoder_bb_0
+  id: digital_diff_decoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    coding: digital.DIFF_DIFFERENTIAL
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    modulus: len(constel.points())
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 440
+    - 488.0
+    rotation: 0
+    state: enabled
+- name: digital_fll_band_edge_cc_0
+  id: digital_fll_band_edge_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: tracks XO offset between the two Plutos
+    filter_size: '44'
+    improved_loop_filter: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    rolloff: '0.35'
+    samps_per_sym: sps
+    type: cc
+    w: '0.03'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 472
+    - 1352.0
+    rotation: 0
+    state: enabled
+- name: digital_protocol_formatter_bb_0
+  id: digital_protocol_formatter_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    format: hdr
+    len_tag_key: packet_len
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 2320
+    - 624.0
+    rotation: 0
+    state: enabled
+- name: digital_symbol_sync_xx_0
+  id: digital_symbol_sync_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel.base()
+    damping: '1.0'
+    loop_bw: '0.045'
+    max_dev: '1.5'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nfilters: '32'
+    osps: '1'
+    pfb_mf_taps: '[]'
+    resamp_type: digital.IR_MMSE_8TAP
+    sps: sps
+    ted_gain: '0.1'
+    ted_type: digital.TED_SIGNAL_TIMES_SLOPE_ML
+    type: cc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1072
+    - 1180.0
+    rotation: 0
+    state: enabled
+- name: filter_fft_rrc_filter_0
+  id: filter_fft_rrc_filter
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha: '0.35'
+    comment: ''
+    decim: '1'
+    gain: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    ntaps: 11*sps
+    nthreads: '1'
+    samp_rate: samp_rate
+    sym_rate: samp_rate/sps
+    type: ccc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 800
+    - 1196.0
+    rotation: 0
+    state: enabled
+- name: iio_pluto_sink_0
+  id: iio_pluto_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    attenuation1: tx_atten
+    bandwidth: '1000000'
+    buffer_size: '8192'
+    comment: 'burst mode: len_tag_key set, so the sink flushes on the packet boundary instead of waiting
+      for a full buffer. The idle filler is OFF.'
+    cyclic: 'False'
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: (int)(rf_freq)
+    fstop: '0'
+    len_tag_key: packet_len
+    samplerate: samp_rate
+    type: fc32
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1184
+    - 884.0
+    rotation: 0
+    state: enabled
+- name: iio_pluto_source_0
+  id: iio_pluto_source
+  parameters:
+    affinity: ''
+    alias: ''
+    bandwidth: '1000000'
+    bbdc: 'True'
+    buffer_size: '2048'
+    comment: buffer 2048 = 2.05 ms carrier-sense latency. At the stock 32768 it would be 32.8 ms, longer
+      than a whole frame, and CSMA would be useless.
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: (int)(rf_freq)
+    fstop: '0'
+    gain1: '''manual'''
+    len_tag_key: ''
+    manual_gain1: rx_gain
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quadrature: 'True'
+    rfdc: 'True'
+    samplerate: samp_rate
+    type: fc32
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 104
+    - 1356.0
+    rotation: 0
+    state: enabled
+- name: link_layer
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"GNU Radio shim for the SHARED-CHANNEL (CSMA/CA) BPSK chat node - r6b.\n\nDerived\
+      \ from bpsk_duplex_pluto_link_layer.py, which stays exactly as it is and\nstill drives the FDD flowgraph.\
+      \ Two differences:\n\n  * every outbound frame goes through bpsk_mac.MacState instead of straight\
+      \ to\n    the modulator, so it has to win the channel first;\n  * a second complex input carries\
+      \ the raw receive stream for carrier sense.\n\nInput ports\n  0  recovered symbols from the Costas\
+      \ loop - EVM and SNR, measurement only\n  1  the raw receive stream decimated by sps - carrier sense\
+      \ energy\n\nBoth ports must be at the SAME sample rate: a sync block consumes equally from\nall\
+      \ of its inputs. Port 0 is one sample per symbol, so the raw stream is\ndecimated by sps with a\
+      \ Keep 1 in N block before it reaches port 1. Energy\ndetection is unaffected by that decimation.\n\
+      \nThree files must sit in the same directory as the flowgraph:\n\n    bpsk_link.py    framing, addressing,\
+      \ stop-and-wait ARQ, file segmentation\n    bpsk_app.py     chat model, delivery receipts, HTTP\
+      \ + SSE server\n    chat_ui.html    the browser front end\n\nThis block owns none of that logic.\
+      \ It converts PMT to bytes, drives the\nstate machine, and measures the recovered constellation\
+      \ so the UI can show\nsignal quality. The chat UI is served on 127.0.0.1:<http_port> and starts\
+      \ on\nthe first tick rather than in __init__, because GRC instantiates this block\nevery time it\
+      \ validates the flowgraph and must not be left holding a socket.\n\n`peers` is a comma-separated\
+      \ list of the addresses this node talks to,\nfor example \"2,3,4\". Leave it empty for a two-node\
+      \ link and peer_addr is\nused instead. Unlisted nodes are discovered on first contact.\n\nInput\
+      \ port 0 takes the recovered symbol stream (the Costas loop output). It\nis used only for the EVM\
+      \ and level estimates in the status bar; the data path\ndoes not run through this block.\n\"\"\"\
+      \n\nimport os\nimport sys\nimport threading\nimport time\n\nimport numpy as np\nimport pmt\nfrom\
+      \ gnuradio import gr\n\n\ndef _load(name):\n    \"\"\"Load a sibling module by absolute path, never\
+      \ by module name.\n\n    GRC validates this block by running exec() on this source in an empty\n\
+      \    namespace, so there is no __file__ and the working directory is wherever\n    GRC was started.\
+      \ Loading the file directly makes both irrelevant, and\n    swallowing every failure keeps a missing\
+      \ module from painting the block\n    red in the editor - __init__ reports it on the console instead.\n\
+      \    \"\"\"\n    import importlib.util\n\n    if name in sys.modules:\n        return sys.modules[name]\n\
+      \n    roots = []\n    try:\n        roots.append(os.path.dirname(os.path.abspath(__file__)))\n \
+      \   except NameError:\n        pass\n    roots.append(os.getcwd())\n    roots.extend([entry for\
+      \ entry in sys.path if entry])\n\n    for root in roots:\n        path = os.path.join(root, name\
+      \ + '.py')\n        if not os.path.isfile(path):\n            continue\n        spec = importlib.util.spec_from_file_location(name,\
+      \ path)\n        module = importlib.util.module_from_spec(spec)\n        sys.modules[name] = module\n\
+      \        try:\n            spec.loader.exec_module(module)\n        except Exception:\n        \
+      \    sys.modules.pop(name, None)\n            raise\n        return module\n    return None\n\n\n\
+      _load_error = ''\ntry:\n    bpsk_link = _load('bpsk_link')\n    bpsk_app = _load('bpsk_app') if\
+      \ bpsk_link is not None else None\n    bpsk_mac = _load('bpsk_mac') if bpsk_link is not None else\
+      \ None\n    if bpsk_app is None or bpsk_mac is None:\n        _load_error = ('bpsk_link.py / bpsk_app.py\
+      \ / bpsk_mac.py not found '\n                       'next to the flowgraph')\nexcept Exception as\
+      \ _err:            # noqa: BLE001 - reported, never raised\n    bpsk_link = bpsk_app = bpsk_mac\
+      \ = None\n    _load_error = repr(_err)\n\n\ndef _to_text(msg):\n    \"\"\"Accept whatever the QT\
+      \ edit box emits and return a str.\"\"\"\n    try:\n        if pmt.is_symbol(msg):\n           \
+      \ return pmt.symbol_to_string(msg)\n        if pmt.is_pair(msg):\n            val = pmt.cdr(msg)\n\
+      \            if pmt.is_u8vector(val):\n                return bytes(bytearray(pmt.u8vector_elements(val))).decode(\n\
+      \                    'utf-8', 'replace')\n            if pmt.is_symbol(val):\n                return\
+      \ pmt.symbol_to_string(val)\n    except Exception:\n        pass\n    return None\n\n\ndef _to_bytes(msg):\n\
+      \    \"\"\"Extract the u8vector of a PDU as bytes.\"\"\"\n    try:\n        if pmt.is_pair(msg):\n\
+      \            val = pmt.cdr(msg)\n            if pmt.is_u8vector(val):\n                return bytes(bytearray(pmt.u8vector_elements(val)))\n\
+      \    except Exception:\n        pass\n    return None\n\n\nclass blk(gr.sync_block):\n    \"\"\"\
+      BPSK chat node: ARQ link layer, application layer and browser UI.\"\"\"\n\n    def __init__(self,\
+      \ my_addr=1, peer_addr=2, ack_timeout=0.5, max_retries=5,\n                 frag_size=256, queue_ahead=0.03,\
+      \ sym_rate=250000.0,\n                 overhead=460, rx_dir='.', nickname='', http_port=8088,\n\
+      \                 open_ui=True, tx_freq=0.0, rx_freq=0.0, peers='',\n                 mac_slot=0.003,\
+      \ cw_min=8, cw_max=128,\n                 busy_threshold_db=-55.0, beacon_interval=2.0,\n      \
+      \           peer_timeout=8.0):\n        gr.sync_block.__init__(self, name='BPSK CSMA Chat Node',\n\
+      \                               in_sig=[np.complex64, np.complex64], out_sig=[])\n        self.http_port\
+      \ = int(http_port)\n        self.open_ui = bool(open_ui)\n        self.app = None\n        self.link\
+      \ = None\n        self.mac = None\n        if bpsk_app is None:\n            print('[chat] ERROR:\
+      \ could not load the protocol modules: %s'\n                  % _load_error, flush=True)\n     \
+      \   else:\n            # \"2,3,4\" from the flowgraph; empty falls back to the single\n        \
+      \    # peer_addr so a two-node setup needs no extra configuration.\n            roster = [int(tok)\
+      \ for tok in str(peers).replace(';', ',').split(',')\n                      if tok.strip().isdigit()]\
+      \ or None\n            store = os.path.join(os.path.abspath(rx_dir or '.'), 'chat_files')\n    \
+      \        self.app = bpsk_app.ChatApp(\n                my_addr=my_addr, peer_addr=peer_addr,\n \
+      \               nick=(nickname or ('Node %d' % my_addr)), store_dir=store,\n                ack_timeout=ack_timeout,\
+      \ max_retries=max_retries,\n                frag_size=frag_size, queue_ahead=queue_ahead,\n    \
+      \            sym_rate=sym_rate, overhead=overhead,\n                tx_freq=tx_freq, rx_freq=rx_freq,\
+      \ peers=roster,\n                beacon_interval=beacon_interval, peer_timeout=peer_timeout)\n \
+      \           self.link = self.app.link\n            self.mac = bpsk_mac.MacState(\n             \
+      \   slot=mac_slot, cw_min=int(cw_min), cw_max=int(cw_max),\n                overhead=overhead, sym_rate=sym_rate,\n\
+      \                busy_threshold_db=busy_threshold_db)\n\n        for port in ('chat_in', 'rx_frame',\
+      \ 'tick'):\n            self.message_port_register_in(pmt.intern(port))\n        for port in ('tx_frame',\
+      \ 'log'):\n            self.message_port_register_out(pmt.intern(port))\n        self.set_msg_handler(pmt.intern('chat_in'),\
+      \ self._on_chat)\n        self.set_msg_handler(pmt.intern('rx_frame'), self._on_rx)\n        self.set_msg_handler(pmt.intern('tick'),\
+      \ self._on_tick)\n\n        self._lock = threading.RLock()\n        self._last_strobe = 0.0\n  \
+      \      self._watchdog = None\n        self._server = None\n        self._meas_t = 0.0\n        self._opened\
+      \ = False\n        # Set by stop(). Everything that can touch a message port or acquire a\n    \
+      \    # resource checks it first: after stop() the runtime is tearing the\n        # block down,\
+      \ and publishing to a port from a Python thread at that\n        # point is a call into freed C++.\n\
+      \        self._halt = threading.Event()\n        # Interned once. _dispatch runs up to 100 times\
+      \ a second.\n        self._port_log = pmt.intern('log')\n        self._port_tx = pmt.intern('tx_frame')\n\
+      \        if self.link is not None:\n            self._say(self.link.banner())\n\n    # ------------------------------------------------------------\
+      \ plumbing\n    def _say(self, text):\n        for line in str(text).splitlines():\n           \
+      \ print('[link] %s' % line, flush=True)\n        if self._halt.is_set():\n            return\n \
+      \       self.message_port_pub(self._port_log, pmt.string_to_symbol(str(text)))\n\n    def _dispatch(self,\
+      \ actions, now=None):\n        \"\"\"Frames go to the MAC to contend for the channel, not to the\
+      \ radio.\"\"\"\n        if self._halt.is_set():\n            return\n        now = time.time() if\
+      \ now is None else now\n        for kind, value in actions:\n            if kind == 'tx':\n    \
+      \            self.mac.enqueue(value, now)\n            elif kind == 'log':\n                self._say(value)\n\
+      \        self._drain_mac(now)\n\n    def _drain_mac(self, now):\n        \"\"\"Publish whatever\
+      \ the MAC has cleared for transmission.\"\"\"\n        if self._halt.is_set() or self.mac is None:\n\
+      \            return\n        for frame in self.mac.on_tick(now):\n            vec = pmt.init_u8vector(len(frame),\
+      \ list(bytearray(frame)))\n            self.message_port_pub(self._port_tx, pmt.cons(pmt.PMT_NIL,\
+      \ vec))\n\n    # -------------------------------------------------------------- startup\n    def\
+      \ _ensure_running(self):\n        \"\"\"Start the UI server and the fallback timer on first traffic.\n\
+      \n        Deferred out of __init__ so that GRC, which instantiates this block\n        every time\
+      \ it validates the flowgraph, never binds the port or spawns\n        a thread.\n        \"\"\"\n\
+      \        if self.app is None or self._halt.is_set():\n            return\n        if self._server\
+      \ is None:\n            try:\n                self._server, _ = bpsk_app.serve(self.app, self.http_port)\n\
+      \                url = 'http://127.0.0.1:%d/' % self.http_port\n                self._say('chat\
+      \ UI ready at %s  (files in %s)'\n                          % (url, self.app.store_dir))\n     \
+      \           if self.open_ui and not self._opened:\n                    self._opened = True\n   \
+      \                 threading.Thread(target=self._open_browser, args=(url,),\n                   \
+      \                  daemon=True).start()\n            except OSError as exc:\n                self._server\
+      \ = False        # do not retry every 10 ms\n                self._say('could not start the chat\
+      \ UI on port %d: %s'\n                          % (self.http_port, exc))\n        if self._watchdog\
+      \ is None:\n            self._watchdog = threading.Thread(target=self._watchdog_loop,\n        \
+      \                                      daemon=True)\n            self._watchdog.start()\n\n    @staticmethod\n\
+      \    def _open_browser(url):\n        import webbrowser\n        time.sleep(0.7)\n        try:\n\
+      \            webbrowser.open(url)\n        except Exception:\n            pass\n\n    def stop(self):\n\
+      \        \"\"\"Stop the watchdog and release the port, in that order.\n\n        Order matters.\
+      \ The watchdog drives on_tick and publishes the frames it\n        produces; left running it keeps\
+      \ calling message_port_pub while the\n        runtime destroys the block. Because stop() also freezes\
+      \ _last_strobe,\n        the watchdog ENGAGES within 250 ms of teardown and then publishes at\n\
+      \        100 Hz, so this is the steady state during shutdown, not a rare race.\n        \"\"\"\n\
+      \        self._halt.set()\n        watchdog, self._watchdog = self._watchdog, None\n        if watchdog\
+      \ is not None and watchdog.is_alive():\n            watchdog.join(timeout=1.0)\n        server,\
+      \ self._server = self._server, None\n        if server:\n            bpsk_app.shutdown(server)\n\
+      \        if self.app is not None:\n            self.app.close()\n        return True\n\n    # --------------------------------------------------------\
+      \ message ports\n    def _watchdog_loop(self):\n        \"\"\"Drive on_tick if the Message Strobe\
+      \ stops delivering.\n\n        Every ARQ timer and the transmit filler hang off the tick port. If\
+      \ that\n        port goes quiet the link silently wedges: nothing retransmits, the\n        queue\
+      \ never drains, and the Pluto TX buffer starves. This takes over\n        after 250 ms of silence\
+      \ and stands down if the strobe returns.\n        \"\"\"\n        engaged = False\n        while\
+      \ not self._halt.is_set():\n            if self._halt.wait(0.01):\n                return      \
+      \                # stop() asked us to leave\n            try:\n                with self._lock:\n\
+      \                    if self.app is None or self._halt.is_set():\n                        continue\n\
+      \                    if (time.time() - self._last_strobe) < 0.25:\n                        if engaged:\n\
+      \                            engaged = False\n                            self._say('message strobe\
+      \ recovered, watchdog '\n                                      'standing down')\n              \
+      \          continue\n                    if not engaged:\n                        engaged = True\n\
+      \                        self._say('WARNING: no tick from the Message Strobe '\n               \
+      \                   'block - driving ARQ timers and TX filler '\n                              \
+      \    'from the fallback thread instead')\n                    now = time.time()\n              \
+      \      self._dispatch(self.app.on_tick(now), now)\n            except Exception as exc:\n      \
+      \          print('[chat] watchdog error: %r' % (exc,), flush=True)\n\n    def _on_chat(self, msg):\n\
+      \        if self.app is None or self._halt.is_set():\n            return\n        text = _to_text(msg)\n\
+      \        if text is None:\n            return\n        with self._lock:\n            self._ensure_running()\n\
+      \            self._dispatch(self.app.on_console(text, time.time()))\n\n    def _on_rx(self, msg):\n\
+      \        if self.app is None or self._halt.is_set():\n            return\n        raw = _to_bytes(msg)\n\
+      \        if raw is None:\n            return\n        with self._lock:\n            self._ensure_running()\n\
+      \            now = time.time()\n            self.mac.note_rx(raw, now)      # hold off for the ACK\
+      \ it will draw\n            self._dispatch(self.app.on_rx(raw, now), now)\n\n    def _on_tick(self,\
+      \ msg):\n        if self.app is None or self._halt.is_set():\n            return\n        with self._lock:\n\
+      \            now = time.time()\n            self._last_strobe = now\n            self._ensure_running()\n\
+      \            self._dispatch(self.app.on_tick(now), now)\n\n    # ------------------------------------------------\
+      \ constellation quality\n    def work(self, input_items, output_items):\n        \"\"\"Estimate\
+      \ EVM and level from the recovered symbols.\n\n        The samples are not part of the data path\
+      \ - they are only measured.\n        Decisions are taken on the real axis, which is what a locked\n\
+      \        differential BPSK receiver produces after the Costas loop, so the\n        residual is\
+      \ everything the modem failed to clean up: noise, timing\n        jitter, and any phase the loop\
+      \ has not tracked out.\n        \"\"\"\n        sym = input_items[0]\n        raw = input_items[1]\n\
+      \        now = time.time()\n        if self._halt.is_set():\n            return len(sym)\n\n   \
+      \     # Carrier sense first: it must be prompt, so it is measured on every\n        # call rather\
+      \ than on the 200 ms EVM cadence. The block itself is\n        # short because the Pluto source\
+      \ buffer is 2048 samples - that is what\n        # keeps sensing latency near 2 ms instead of the\
+      \ 33 ms the stock\n        # 32768-sample buffer would impose, which is longer than a whole frame.\n\
+      \        if self.mac is not None and len(raw):\n            power = float(np.mean(np.abs(raw) **\
+      \ 2)) + 1e-15\n            self.mac.set_level(10.0 * np.log10(power), now)\n        if self.app\
+      \ is not None and (now - self._meas_t) >= 0.2 and len(sym):\n            self._meas_t = now\n  \
+      \          block = np.asarray(sym[:4096], dtype=np.complex64)\n            power = float(np.mean(np.abs(block)\
+      \ ** 2))\n            amp = float(np.mean(np.abs(block.real)))\n            if amp > 1e-4:\n   \
+      \             err = block - np.sign(block.real) * amp\n                evm = float(np.sqrt(np.mean(np.abs(err)\
+      \ ** 2)) / amp)\n                evm = min(max(evm, 1e-3), 10.0)\n                snr = -20.0 *\
+      \ np.log10(evm)\n                self.app.set_radio_metrics(\n                    snr_db=round(snr,\
+      \ 2),\n                    level_db=round(10.0 * np.log10(power + 1e-12), 1),\n                \
+      \    evm=round(100.0 * evm, 2),\n                    locked=bool(snr > 5.0))\n                if\
+      \ self.mac is not None:\n                    self.app.set_mac_state(self.mac.snapshot(now))\n  \
+      \          else:\n                self.app.set_radio_metrics(snr_db=None, level_db=None,\n     \
+      \                                      evm=None, locked=False)\n        return len(sym)\n"
+    ack_timeout: ack_timeout
+    affinity: ''
+    alias: ''
+    comment: CSMA/CA medium access - see bpsk_mac.py
+    frag_size: frag_size
+    max_retries: max_retries
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    my_addr: my_addr
+    overhead: preamble_size+postamble_size+12
+    peer_addr: peer_addr
+    queue_ahead: queue_ahead
+    rx_dir: '"."'
+    sym_rate: samp_rate/sps
+    nickname: nickname
+    http_port: http_port
+    open_ui: 'True'
+    tx_freq: tx_freq
+    rx_freq: rx_freq
+    peers: peers
+    mac_slot: mac_slot
+    cw_min: cw_min
+    cw_max: cw_max
+    busy_threshold_db: busy_threshold_db
+    beacon_interval: beacon_interval
+    peer_timeout: peer_timeout
+  states:
+    _io_cache: '(''BPSK CSMA Chat Node'', ''blk'', [(''my_addr'', ''1''), (''peer_addr'', ''2''), (''ack_timeout'',
+      ''0.5''), (''max_retries'', ''5''), (''frag_size'', ''256''), (''queue_ahead'', ''0.03''), (''sym_rate'',
+      ''250000.0''), (''overhead'', ''460''), (''rx_dir'', "''.''"), (''nickname'', "''''"), (''http_port'',
+      ''8088''), (''open_ui'', ''True''), (''tx_freq'', ''0.0''), (''rx_freq'', ''0.0''), (''peers'',
+      "''''")], [(''0'', ''complex'', 1), (''tick'', ''message'', 1), (''rx_frame'', ''message'', 1),
+      (''chat_in'', ''message'', 1)], [(''log'', ''message'', 1), (''tx_frame'', ''message'', 1)], ''BPSK
+      chat node: ARQ link layer, application layer and browser UI.'', [])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1752
+    - 508.0
+    rotation: 0
+    state: enabled
+- name: my_addr
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 'node A: 1   node B: 2'
+    hide: none
+    label: My address
+    short_id: ''
+    type: intx
+    value: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 32
+    - 144.0
+    rotation: 0
+    state: true
+- name: pdu_pdu_to_tagged_stream_0
+  id: pdu_pdu_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 2024
+    - 592.0
+    rotation: 0
+    state: enabled
+- name: pdu_tagged_stream_to_pdu_0
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: CRC is checked in bpsk_link.parse()
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1224
+    - 496.0
+    rotation: 0
+    state: enabled
+- name: peer_addr
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Peer address
+    short_id: ''
+    type: intx
+    value: '2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 192
+    - 24.0
+    rotation: 0
+    state: true
+- name: qtgui_const_sink_x_0
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: two tight blobs = locked
+    grid: 'True'
+    gui_hint: '[1, 1, 2, 1]'
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '"Constellation"'
+    nconnections: '1'
+    size: '1024'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1760
+    - 1520.0
+    rotation: 0
+    state: enabled
+- name: qtgui_edit_box_msg_0
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: fallback console - the chat UI is served on http_port
+    gui_hint: '[0, 0, 1, 2]'
+    is_pair: 'False'
+    is_static: 'True'
+    key: '""'
+    label: '"Console  (the chat lives in the browser; /stats, /help here)"'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: string
+    value: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1392
+    - 616.0
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_x_0
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '0.2'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: peer signal should sit at centre
+    ctrlpanel: 'False'
+    fc: rx_freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: '[1, 0, 2, 1]'
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"RX Spectrum"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '0'
+    ymin: '-120'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 472
+    - 1552.0
+    rotation: 0
+    state: enabled
+- name: qtgui_time_sink_rx
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'True'
+    gui_hint: '[3, 0, 2, 2]'
+    label1: Real
+    label10: Signal 10
+    label2: Imag
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"Recovered Symbols"'
+    nconnections: '1'
+    size: '256'
+    srate: samp_rate/sps
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '3'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.01'
+    tr_mode: qtgui.TRIG_MODE_AUTO
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.1'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '1.0'
+    ymin: '-1.0'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1776
+    - 1296.0
+    rotation: 0
+    state: enabled
+- name: qtgui_time_sink_tx
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: blue
+    color10: dark blue
+    color2: red
+    color3: green
+    color4: black
+    color5: cyan
+    color6: magenta
+    color7: yellow
+    color8: dark red
+    color9: dark green
+    comment: ''
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'True'
+    gui_hint: '[5, 0, 2, 1]'
+    label1: Real
+    label10: Signal 10
+    label2: Imag
+    label3: Signal 3
+    label4: Signal 4
+    label5: Signal 5
+    label6: Signal 6
+    label7: Signal 7
+    label8: Signal 8
+    label9: Signal 9
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"Transmit waveform"'
+    nconnections: '1'
+    size: '1024'
+    srate: samp_rate
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '1'
+    ymin: '-1'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1144
+    - 704.0
+    rotation: 0
+    state: enabled
+- name: rx_freq
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 'node A: 910.2M   node B: 905.2M'
+    hide: none
+    label: RX carrier (Hz)
+    short_id: ''
+    type: eng_float
+    value: 910.2e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 480
+    - 16.0
+    rotation: 0
+    state: true
+- name: tx_freq
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 'node A: 905.2M   node B: 910.2M'
+    hide: none
+    label: TX carrier (Hz)
+    short_id: ''
+    type: eng_float
+    value: 905.2e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 336
+    - 32.0
+    rotation: 0
+    state: true
+- name: uri
+  id: parameter
+  parameters:
+    alias: ''
+    comment: this node's own Pluto
+    hide: none
+    label: Pluto URI
+    short_id: ''
+    type: str
+    value: ip:192.168.1.10
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 648
+    - 16.0
+    rotation: 0
+    state: true
+- name: virtual_sink_header
+  id: virtual_sink
+  parameters:
+    alias: ''
+    comment: ''
+    stream_id: header
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 2440
+    - 752.0
+    rotation: 180
+    state: true
+- name: virtual_sink_payload
+  id: virtual_sink
+  parameters:
+    alias: ''
+    comment: ''
+    stream_id: payload
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 2264
+    - 768.0
+    rotation: 0
+    state: true
+- name: virtual_sink_recovery
+  id: virtual_sink
+  parameters:
+    alias: ''
+    comment: ''
+    stream_id: recovery
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1760
+    - 1184.0
+    rotation: 0
+    state: enabled
+- name: virtual_source_header
+  id: virtual_source
+  parameters:
+    alias: ''
+    comment: ''
+    stream_id: header
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 208
+    - 896.0
+    rotation: 0
+    state: true
+- name: virtual_source_payload
+  id: virtual_source
+  parameters:
+    alias: ''
+    comment: ''
+    stream_id: payload
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 208
+    - 976.0
+    rotation: 0
+    state: true
+- name: virtual_source_recovery
+  id: virtual_source
+  parameters:
+    alias: ''
+    comment: ''
+    stream_id: recovery
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 48
+    - 496.0
+    rotation: 0
+    state: enabled
+- name: nickname
+  id: parameter
+  parameters:
+    alias: ''
+    comment: shown on the peer's chat bubbles
+    hide: none
+    label: Chat nickname
+    short_id: ''
+    type: str
+    value: Node A
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 832
+    - 16.0
+    rotation: 0
+    state: true
+- name: http_port
+  id: parameter
+  parameters:
+    alias: ''
+    comment: open http://127.0.0.1:<port>/ in a browser
+    hide: none
+    label: Chat UI port
+    short_id: ''
+    type: intx
+    value: '8088'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1016
+    - 16.0
+    rotation: 0
+    state: true
+- name: peers
+  id: parameter
+  parameters:
+    alias: ''
+    comment: comma separated, e.g. 2,3,4 - empty uses peer_addr
+    hide: none
+    label: Peer addresses
+    short_id: ''
+    type: str
+    value: '2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 960
+    - 24.0
+    rotation: 0
+    state: true
+- name: blocks_keep_one_in_n_0
+  id: blocks_keep_one_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'match port 0 rate: a sync block consumes equally from all inputs'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: sps
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 360
+    - 1456.0
+    rotation: 0
+    state: true
+- name: rf_freq
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ONE channel for every node - TDD, not FDD
+    hide: none
+    label: Shared carrier (Hz)
+    short_id: ''
+    type: eng_float
+    value: 915.0e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1120
+    - 24.0
+    rotation: 0
+    state: true
+- name: mac_slot
+  id: parameter
+  parameters:
+    alias: ''
+    comment: must be >= carrier-sense latency (2.05 ms at buffer 2048)
+    hide: none
+    label: MAC slot (s)
+    short_id: ''
+    type: eng_float
+    value: '0.003'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1280
+    - 24.0
+    rotation: 0
+    state: true
+- name: cw_min
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: CW min (slots)
+    short_id: ''
+    type: intx
+    value: '8'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1440
+    - 24.0
+    rotation: 0
+    state: true
+- name: cw_max
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: CW max (slots)
+    short_id: ''
+    type: intx
+    value: '128'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1600
+    - 24.0
+    rotation: 0
+    state: true
+- name: busy_threshold_db
+  id: parameter
+  parameters:
+    alias: ''
+    comment: tune against your measured noise floor
+    hide: none
+    label: Busy threshold (dB)
+    short_id: ''
+    type: eng_float
+    value: '-55.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1760
+    - 24.0
+    rotation: 0
+    state: true
+- name: beacon_interval
+  id: parameter
+  parameters:
+    alias: ''
+    comment: liveness with no idle filler
+    hide: none
+    label: Beacon (s)
+    short_id: ''
+    type: eng_float
+    value: '2.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 1920
+    - 24.0
+    rotation: 0
+    state: true
+- name: peer_timeout
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Peer timeout (s)
+    short_id: ''
+    type: eng_float
+    value: '8.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate:
+    - 2080
+    - 24.0
+    rotation: 0
+    state: true
+connections:
+- - blocks_message_strobe_0
+  - strobe
+  - link_layer
+  - tick
+- - blocks_multiply_const_vxx_0
+  - '0'
+  - iio_pluto_sink_0
+  - '0'
+- - blocks_multiply_const_vxx_0
+  - '0'
+  - qtgui_time_sink_tx
+  - '0'
+- - blocks_repack_bits_bb_0
+  - '0'
+  - pdu_tagged_stream_to_pdu_0
+  - '0'
+- - blocks_stream_to_tagged_stream_post
+  - '0'
+  - blocks_tagged_stream_mux_0
+  - '3'
+- - blocks_stream_to_tagged_stream_pre
+  - '0'
+  - blocks_tagged_stream_mux_0
+  - '0'
+- - blocks_tagged_stream_mux_0
+  - '0'
+  - digital_constellation_modulator_0
+  - '0'
+- - blocks_vector_source_x_0
+  - '0'
+  - blocks_stream_to_tagged_stream_pre
+  - '0'
+- - blocks_vector_source_x_0_0
+  - '0'
+  - blocks_stream_to_tagged_stream_post
+  - '0'
+- - digital_constellation_decoder_cb_0
+  - '0'
+  - digital_diff_decoder_bb_0
+  - '0'
+- - digital_constellation_modulator_0
+  - '0'
+  - blocks_multiply_const_vxx_0
+  - '0'
+- - digital_correlate_access_code_xx_ts_0
+  - '0'
+  - blocks_repack_bits_bb_0
+  - '0'
+- - digital_costas_loop_cc_0
+  - '0'
+  - link_layer
+  - '0'
+- - digital_costas_loop_cc_0
+  - '0'
+  - qtgui_const_sink_x_0
+  - '0'
+- - digital_costas_loop_cc_0
+  - '0'
+  - qtgui_time_sink_rx
+  - '0'
+- - digital_costas_loop_cc_0
+  - '0'
+  - virtual_sink_recovery
+  - '0'
+- - digital_diff_decoder_bb_0
+  - '0'
+  - digital_correlate_access_code_xx_ts_0
+  - '0'
+- - digital_fll_band_edge_cc_0
+  - '0'
+  - filter_fft_rrc_filter_0
+  - '0'
+- - digital_protocol_formatter_bb_0
+  - '0'
+  - virtual_sink_header
+  - '0'
+- - digital_symbol_sync_xx_0
+  - '0'
+  - digital_costas_loop_cc_0
+  - '0'
+- - filter_fft_rrc_filter_0
+  - '0'
+  - digital_symbol_sync_xx_0
+  - '0'
+- - iio_pluto_source_0
+  - '0'
+  - digital_fll_band_edge_cc_0
+  - '0'
+- - iio_pluto_source_0
+  - '0'
+  - qtgui_freq_sink_x_0
+  - '0'
+- - link_layer
+  - tx_frame
+  - pdu_pdu_to_tagged_stream_0
+  - pdus
+- - pdu_pdu_to_tagged_stream_0
+  - '0'
+  - digital_protocol_formatter_bb_0
+  - '0'
+- - pdu_pdu_to_tagged_stream_0
+  - '0'
+  - virtual_sink_payload
+  - '0'
+- - pdu_tagged_stream_to_pdu_0
+  - pdus
+  - link_layer
+  - rx_frame
+- - qtgui_edit_box_msg_0
+  - msg
+  - link_layer
+  - chat_in
+- - virtual_source_header
+  - '0'
+  - blocks_tagged_stream_mux_0
+  - '1'
+- - virtual_source_payload
+  - '0'
+  - blocks_tagged_stream_mux_0
+  - '2'
+- - virtual_source_recovery
+  - '0'
+  - digital_constellation_decoder_cb_0
+  - '0'
+- - iio_pluto_source_0
+  - '0'
+  - blocks_keep_one_in_n_0
+  - '0'
+- - blocks_keep_one_in_n_0
+  - '0'
+  - link_layer
+  - '1'
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0

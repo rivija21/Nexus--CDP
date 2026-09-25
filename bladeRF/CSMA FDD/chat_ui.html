@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BPSK Link Terminal</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23fbfaf6'/%3E%3Cpath d='M3 12h3l2.5-6 3.5 12 2.5-7 1.5 3h4' fill='none' stroke='%2314634a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+/* Variant D - Ledger: an editorial transcript. Ruled entries, no chat bubbles. */
+:root{
+  --bg:#fbfaf6; --card:#ffffff; --card-2:#f6f4ee;
+  --line:#e4e0d5; --line-2:#cfc9b9;
+  --ink:#1c1b17; --ink-2:#4a4740; --ink-3:#8b8578;
+  --accent:#14634a; --accent-2:#1c7d5e; --accent-soft:#e7f1ec;
+  --ok:#14634a; --warn:#9a6a10; --bad:#a63d3d;
+  --c-tx:20,99,74; --c-rx:150,100,20; --c-snr:90,80,140; --c-grid:236,232,222;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:14px;line-height:1.62;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#ded9cc;border-radius:8px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+
+.app{height:100%;display:flex;flex-direction:column}
+
+/* ---------------------------------------------------------------- header */
+header{display:flex;align-items:center;gap:18px;padding:13px 26px;flex:none;
+  background:var(--card);border-bottom:2px solid var(--ink)}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{width:32px;height:32px;border-radius:0;flex:none;display:grid;place-items:center;
+  background:var(--ink);color:var(--bg)}
+.brand h1{margin:0;font-family:var(--serif);font-size:18px;font-weight:600;
+  letter-spacing:.01em;white-space:nowrap}
+.brand .sub{font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+
+.peer{display:flex;align-items:center;gap:10px;margin-left:auto;padding:0 0 0 18px;flex:none;
+  border-left:1px solid var(--line)}
+.peer-av{display:none}
+.peer-txt{display:flex;flex-direction:column;line-height:1.3;text-align:right}
+.peer-name{font-family:var(--serif);font-size:15px;font-weight:600;white-space:nowrap}
+.peer-sub{font-family:var(--mono);font-size:10px;color:var(--ink-3);
+  display:flex;align-items:center;justify-content:flex-end;gap:6px;white-space:nowrap}
+.led{width:7px;height:7px;border-radius:50%;background:var(--bad);flex:none}
+.led.up{background:var(--ok)}
+
+.tiles{display:flex;gap:0;order:3;border-left:1px solid var(--line);padding-left:18px}
+.tile{padding:0 16px;border-right:1px solid var(--line);display:flex;flex-direction:column;
+  justify-content:center}
+.tile:last-child{border-right:none;padding-right:0}
+.tile .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.tile .v{font-family:var(--serif);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15}
+.tile .v small{font-family:var(--mono);font-size:9px;color:var(--ink-3);font-weight:400;margin-left:3px}
+.tile.good .v{color:var(--ok)} .tile.warn .v{color:var(--warn)} .tile.bad .v{color:var(--bad)}
+
+#togglePanel{order:4;margin-left:16px}
+.iconbtn{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:0;
+  border:1px solid var(--line-2);background:var(--card);color:var(--ink-2)}
+.iconbtn:hover{background:var(--card-2)}
+.iconbtn.on{color:var(--card);background:var(--accent);border-color:var(--accent)}
+.iconbtn.ghost{border-color:transparent;background:none}
+
+.banner{display:none;padding:8px 26px;font-family:var(--mono);font-size:11px;letter-spacing:.03em;
+  align-items:center;flex:none;border-bottom:1px solid}
+.banner.show{display:flex}
+.banner.demo{background:#fdf6e3;border-color:#e6d9b4;color:#84620f}
+.banner.lost{background:#fbeeee;border-color:#e9cfcf;color:#a33}
+
+.body{flex:1;display:flex;min-height:0}
+
+/* -------------------------------------------------- transcript as entries */
+.chat{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+.stream{flex:1;overflow-y:auto;padding:26px 30px 12px}
+.col{max-width:860px;margin:0 auto}
+.stream.drag::after{content:"drop to transmit";position:absolute;inset:12px;z-index:5;
+  border:1px dashed var(--accent);background:rgba(20,99,74,.05);display:grid;place-items:center;
+  font-family:var(--serif);font-size:16px;font-style:italic;color:var(--accent);pointer-events:none}
+
+.row{display:block;margin-bottom:22px}
+.avatar{display:none}
+.bubble{max-width:none;padding:0 0 0 20px;border-left:2px solid var(--line-2);background:none}
+.row.out .bubble{border-left-color:var(--accent)}
+.who-line{display:flex;align-items:baseline;gap:9px;margin-bottom:4px}
+.who-line .n{font-family:var(--serif);font-size:14.5px;font-weight:600;color:var(--ink)}
+.row.out .who-line .n{color:var(--accent)}
+.who-line .a{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3)}
+.text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px;line-height:1.68;color:var(--ink-2)}
+.row.out .text{color:var(--ink)}
+
+.meta{display:flex;align-items:center;gap:10px;margin-top:7px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;color:var(--ink-3)}
+.meta .st.ok{color:var(--ok)} .meta .st.bad{color:var(--bad)}
+.meta .time{order:-1}
+.badge{border-bottom:1px solid var(--line-2);padding:0 1px 1px;font-size:9.5px}
+.badge.warn{color:var(--warn);border-color:#dcc48c}
+.badge.ok{color:var(--ok);border-color:#a8ccbd}
+.badge.bad{color:var(--bad);border-color:#e0b8b8}
+.note{margin-top:6px;font-family:var(--serif);font-style:italic;font-size:13px;color:var(--warn)}
+
+.row.sys{margin:20px 0;text-align:center}
+.row.sys .bubble{padding:0;border:none;position:relative}
+.row.sys .bubble::before{content:"";position:absolute;left:0;right:0;top:50%;
+  border-top:1px solid var(--line)}
+.row.sys .text{position:relative;display:inline-block;padding:0 14px;background:var(--bg);
+  font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--ink-3)}
+.row.sys.warn .text{color:var(--warn)}
+.row.sys.error .text{color:var(--bad)}
+
+/* --------------------------------------------------- attachments as plates */
+.shot{margin:12px 0 4px;border:1px solid var(--line-2);padding:9px;background:var(--card);
+  cursor:zoom-in;max-width:560px}
+.shot-img{display:flex;align-items:center;justify-content:center;background:#fff;
+  max-height:300px;overflow:hidden;border:1px solid var(--line)}
+.shot-img img{display:block;max-width:100%;max-height:300px;object-fit:contain}
+.shot-img.skel{height:130px;color:#c3bcab;background:
+  repeating-linear-gradient(135deg,#f7f5ef 0 11px,#f1eee5 11px 22px)}
+.shot figcaption{display:flex;align-items:baseline;gap:10px;padding:8px 2px 0}
+.shot .fn{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--ink-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shot .fs{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);margin-left:auto;flex:none}
+.shot .dl{flex:none;display:grid;place-items:center;width:22px;height:22px;
+  border:1px solid var(--line-2);color:var(--ink-2)}
+.shot .dl:hover{background:var(--accent);border-color:var(--accent);color:var(--card)}
+
+.filecard{display:flex;align-items:center;gap:12px;margin:11px 0 4px;padding:10px 12px;
+  border:1px solid var(--line-2);background:var(--card);min-width:250px}
+.chip{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:0;
+  font-family:var(--mono);font-size:9.5px;font-weight:700;background:var(--ink);color:var(--bg)}
+.fmeta{display:flex;flex-direction:column;min-width:0}
+.filecard .fn{font-family:var(--serif);font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.filecard .fs{font-family:var(--mono);font-size:9.5px;color:var(--ink-3)}
+
+.prog{height:4px;background:var(--card-2);border:1px solid var(--line);overflow:hidden;margin-top:10px;max-width:420px}
+.prog i{display:block;height:100%;background:var(--accent);transition:width .25s ease}
+.progtxt{display:flex;justify-content:space-between;max-width:420px;
+  font-family:var(--mono);font-size:9.5px;color:var(--ink-3);margin-top:4px}
+
+.jump{position:absolute;right:30px;bottom:104px;padding:6px 14px;display:none;border-radius:0;
+  border:1px solid var(--ink);background:var(--card);font-family:var(--serif);font-size:13px}
+.jump.show{display:block}
+
+/* -------------------------------------------------------------- composer */
+.composer{flex:none;padding:12px 30px 18px;background:var(--card);border-top:1px solid var(--line)}
+.cwrap{max-width:860px;margin:0 auto;display:flex;align-items:flex-end;gap:9px;
+  padding:5px 5px 5px 14px;border:1px solid var(--line-2);background:var(--bg)}
+.cwrap:focus-within{border-color:var(--accent)}
+#input{flex:1;border:none;outline:none;resize:none;background:none;color:var(--ink);
+  font-family:var(--sans);font-size:14px;line-height:1.6;padding:7px 0;max-height:150px;min-height:30px}
+#input::placeholder{color:var(--ink-3)}
+.send{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:0;
+  background:var(--accent);color:var(--card)}
+.send:hover{background:var(--accent-2)}
+.send:disabled{opacity:.32;cursor:default}
+.chint{max-width:860px;margin:9px auto 0;display:flex;gap:16px;flex-wrap:wrap;align-items:center;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;color:var(--ink-3)}
+.chint b{color:var(--ink-2);font-weight:700}
+.chint .cap{margin-left:auto}
+
+/* ---------------------------------------------------- ruled telemetry column */
+aside{width:310px;flex:none;background:var(--card);border-left:1px solid var(--line);
+  display:flex;flex-direction:column;min-height:0;overflow-y:auto}
+aside:not(.open){display:none}
+.pane{padding:16px 20px;border-bottom:1px solid var(--line)}
+.pane h2{margin:0 0 10px;font-family:var(--serif);font-size:13.5px;font-weight:600;
+  color:var(--ink);display:flex;justify-content:space-between;align-items:baseline;
+  border-bottom:1px solid var(--ink);padding-bottom:5px}
+.pane h2 span{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);font-weight:400}
+.legend{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;
+  color:var(--ink-3);margin-bottom:6px}
+.legend .tx::before,.legend .rx::before{content:"";display:inline-block;width:10px;height:2px;
+  margin-right:5px;vertical-align:middle}
+.legend .tx::before{background:rgb(var(--c-tx))}
+.legend .rx::before{background:rgb(var(--c-rx))}
+.spark{width:100%;height:46px;display:block;border:1px solid var(--line);background:var(--bg)}
+.grid{display:grid;grid-template-columns:1fr;gap:0}
+.cell{padding:5px 0;border-bottom:1px solid var(--line);display:flex;
+  align-items:baseline;justify-content:space-between;gap:8px}
+.cell .k{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.cell .v{font-family:var(--serif);font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.cell.warn .v{color:var(--warn)} .cell.bad .v{color:var(--bad)}
+.kvs{margin-top:12px}
+.kv{display:flex;justify-content:space-between;font-size:11.5px;padding:3px 0;color:var(--ink-2);
+  border-bottom:1px dotted var(--line)}
+.kv span:first-child{color:var(--ink-3)}
+.kv span:last-child{font-family:var(--mono);font-size:10.5px;font-variant-numeric:tabular-nums}
+.logpane{flex:1;min-height:0;display:flex;flex-direction:column;border-bottom:none}
+#log{flex:1;overflow-y:auto;font-family:var(--mono);font-size:10px;line-height:1.75;color:var(--ink-2)}
+#log div{padding:2px 0;border-bottom:1px dotted var(--line);overflow-wrap:anywhere}
+#log .t{color:var(--ink-3);margin-right:7px}
+
+/* -------------------------------------------------------------- lightbox */
+.lightbox{position:fixed;inset:0;z-index:60;display:none;place-items:center;padding:44px;
+  background:rgba(28,27,23,.74)}
+.lightbox.show{display:grid}
+.lightbox img{max-width:100%;max-height:100%;background:#fff;padding:10px;
+  box-shadow:0 30px 80px -35px rgba(0,0,0,.8)}
+.lbx{position:absolute;top:20px;right:24px;width:34px;height:34px;
+  background:rgba(255,255,255,.16);color:#fff;font-size:20px;line-height:1}
+
+@media(max-width:1280px){#tLvl,#tPer,#tQ{display:none}}
+@media(max-width:960px){
+  aside{position:absolute;right:0;top:0;bottom:0;z-index:20}
+  .brand .sub{display:none}
+}
+@media(max-width:700px){.tiles{display:none}}
+
+
+/* ---- conversation bar (r6a) -------------------------------------------
+   One chip per conversation: the room, then every known peer. The active
+   chip is the transcript being shown; a dot marks unread traffic elsewhere. */
+.convbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;
+         padding:8px 16px;border-bottom:1px solid var(--line,#2a2f38);
+         background:var(--bg2,transparent)}
+.convbar:empty{display:none}
+.conv{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+      padding:4px 11px;border-radius:999px;font-size:12px;line-height:18px;
+      border:1px solid var(--line,#2a2f38);background:transparent;
+      color:var(--dim,#93a2b4);white-space:nowrap;
+      transition:background .12s,color .12s,border-color .12s}
+.conv:hover{color:var(--fg,#eaeef3)}
+.conv.active{background:var(--accent,#3dd6b0);border-color:var(--accent,#3dd6b0);
+             color:#08131a;font-weight:600}
+.conv .cdot{width:6px;height:6px;border-radius:50%;background:#6b7682;flex:none}
+.conv .cdot.up{background:var(--ok,#3dd6b0)}
+.conv.active .cdot{background:#08131a;opacity:.55}
+.conv .cbadge{min-width:16px;height:16px;padding:0 4px;border-radius:999px;
+              background:var(--accent,#3dd6b0);color:#08131a;font-size:10px;
+              font-weight:700;display:none;align-items:center;justify-content:center}
+.conv.unread .cbadge{display:inline-flex}
+.conv.active .cbadge{display:none}
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="logo">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12h3l2.5-7 4 14 3-9 2 4h5.5"/>
+        </svg>
+      </div>
+      <div class="who">
+        <h1 id="title">BPSK Link Terminal</h1>
+        <div class="sub" id="subtitle">905.2 TX &middot; 910.2 RX MHz &middot; FDD &middot; differential BPSK</div>
+      </div>
+    </div>
+
+    <div class="peer">
+      <span class="peer-av" id="peerAvatar">NB</span>
+      <span class="peer-txt">
+        <span class="peer-name" id="peerName">peer</span>
+        <span class="peer-sub"><span class="led" id="led"></span><span id="peerState">no carrier</span> &middot; <span id="addrs">--</span></span>
+      </span>
+    </div>
+
+    <div class="tiles">
+      <div class="tile" id="tSnr"><span class="k">SNR</span><span class="v">--<small>dB</small></span></div>
+      <div class="tile" id="tLvl"><span class="k">RX level</span><span class="v">--<small>dB</small></span></div>
+      <div class="tile" id="tTx"><span class="k">TX</span><span class="v">0<small>kb/s</small></span></div>
+      <div class="tile" id="tRx"><span class="k">RX</span><span class="v">0<small>kb/s</small></span></div>
+      <div class="tile" id="tPer"><span class="k">Frame err</span><span class="v">0<small>%</small></span></div>
+      <div class="tile" id="tQ"><span class="k">Backlog</span><span class="v">0<small>ms</small></span></div>
+    </div>
+
+    <button class="iconbtn on" id="togglePanel" title="Link telemetry">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 13h4l3-8 4 16 3-8h4"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="banner" id="banner"><span id="bannerText"></span></div>
+
+  <div class="convbar" id="convbar"></div>
+
+  <div class="body">
+    <main class="chat">
+      <div class="stream" id="stream"><div class="col" id="col"></div></div>
+      <button class="jump" id="jump">new messages &darr;</button>
+
+      <div class="composer">
+        <div class="cwrap">
+          <textarea id="input" rows="1" placeholder="Message the peer&hellip;   (/help for commands)"></textarea>
+          <button class="iconbtn ghost" id="attach" title="Attach a file">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.4 11.05 12.25 20.2a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.18 5.18l-9.2 9.19a1.83 1.83 0 0 1-2.59-2.59l8.49-8.48"/>
+            </svg>
+          </button>
+          <button class="send" id="send" disabled title="Send">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 12h14M12 6l6 6-6 6"/>
+            </svg>
+          </button>
+        </div>
+        <div class="chint">
+          <span><b>Enter</b> send</span>
+          <span><b>Shift+Enter</b> newline</span>
+          <span><b>/nick</b> rename</span>
+          <span><b>/stats</b> counters</span>
+          <span>drag, drop or paste to attach</span>
+          <span class="cap" id="cap">frag 256 B &middot; ACK 0.50 s &middot; 5 retries &middot; 250 ksym/s</span>
+        </div>
+        <input type="file" id="file" hidden multiple>
+      </div>
+    </main>
+
+    <aside id="panel" class="open">
+      <div class="pane">
+        <h2>Throughput <span id="thNow">0 / 0 kb/s</span></h2>
+        <div class="legend"><span class="tx">TX goodput</span><span class="rx">RX goodput</span></div>
+        <canvas class="spark" id="sparkTp"></canvas>
+      </div>
+
+      <div class="pane">
+        <h2>Signal quality <span id="snrNow">-- dB</span></h2>
+        <canvas class="spark" id="sparkSnr"></canvas>
+      </div>
+
+      <div class="pane">
+        <h2>ARQ &amp; framing</h2>
+        <div class="grid">
+          <div class="cell"><span class="k">TX frames</span><span class="v" id="cTxF">0</span></div>
+          <div class="cell"><span class="k">RX valid</span><span class="v" id="cRxOk">0</span></div>
+          <div class="cell warn"><span class="k">Retransmits</span><span class="v" id="cRetx">0</span></div>
+          <div class="cell bad"><span class="k">CRC fails</span><span class="v" id="cRxBad">0</span></div>
+          <div class="cell"><span class="k">ACK tx / rx</span><span class="v" id="cAck">0 / 0</span></div>
+          <div class="cell"><span class="k">Duplicates</span><span class="v" id="cDup">0</span></div>
+          <div class="cell bad"><span class="k">Dropped</span><span class="v" id="cDrop">0</span></div>
+          <div class="cell warn"><span class="k">Frags lost</span><span class="v" id="cFrag">0</span></div>
+        </div>
+        <div class="kvs">
+          <div class="kv"><span>frame error rate</span><span id="kPer">0.00 %</span></div>
+          <div class="kv"><span>tx queue depth</span><span id="kQ">0</span></div>
+          <div class="kv"><span>tx backlog</span><span id="kBk">0 ms</span></div>
+          <div class="kv"><span>idle filler tx / rx</span><span id="kIdle">0 / 0</span></div>
+          <div class="kv"><span>file repair rounds</span><span id="kRounds">0</span></div>
+          <div class="kv"><span>in flight</span><span id="kPend">idle</span></div>
+          <div class="kv"><span>payload tx / rx</span><span id="kBytes">0 / 0</span></div>
+          <div class="kv"><span>uptime</span><span id="kUp">0 s</span></div>
+          <div class="kv"><span>link build</span><span id="kRev">--</span></div>
+        </div>
+      </div>
+
+      <div class="pane logpane">
+        <h2>Link log</h2>
+        <div id="log"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const DEMO_IMAGE = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22760%22%20height%3D%22420%22%20viewBox%3D%220%200%20760%20420%22%3E%0A%3Crect%20width%3D%22760%22%20height%3D%22420%22%20fill%3D%22%23ffffff%22%2F%3E%0A%3Crect%20x%3D%2258%22%20y%3D%2244%22%20width%3D%22684%22%20height%3D%22336%22%20fill%3D%22%23fbfcfd%22%20stroke%3D%22%23d8dee6%22%2F%3E%0A%3Cg%20stroke%3D%22%23e8edf3%22%20stroke-width%3D%221%22%3E%3Cline%20x1%3D%2258%22%20y1%3D%22100.0%22%20x2%3D%22742%22%20y2%3D%22100.0%22%2F%3E%3Cline%20x1%3D%2258%22%20y1%3D%22156.0%22%20x2%3D%22742%22%20y2%3D%22156.0%22%2F%3E%3Cline%20x1%3D%2258%22%20y1%3D%22212.0%22%20x2%3D%22742%22%20y2%3D%22212.0%22%2F%3E%3Cline%20x1%3D%2258%22%20y1%3D%22268.0%22%20x2%3D%22742%22%20y2%3D%22268.0%22%2F%3E%3Cline%20x1%3D%2258%22%20y1%3D%22324.0%22%20x2%3D%22742%22%20y2%3D%22324.0%22%2F%3E%3Cline%20x1%3D%22143.5%22%20y1%3D%2244%22%20x2%3D%22143.5%22%20y2%3D%22380%22%2F%3E%3Cline%20x1%3D%22229.0%22%20y1%3D%2244%22%20x2%3D%22229.0%22%20y2%3D%22380%22%2F%3E%3Cline%20x1%3D%22314.5%22%20y1%3D%2244%22%20x2%3D%22314.5%22%20y2%3D%22380%22%2F%3E%3Cline%20x1%3D%22400.0%22%20y1%3D%2244%22%20x2%3D%22400.0%22%20y2%3D%22380%22%2F%3E%3Cline%20x1%3D%22485.5%22%20y1%3D%2244%22%20x2%3D%22485.5%22%20y2%3D%22380%22%2F%3E%3Cline%20x1%3D%22571.0%22%20y1%3D%2244%22%20x2%3D%22571.0%22%20y2%3D%22380%22%2F%3E%3Cline%20x1%3D%22656.5%22%20y1%3D%2244%22%20x2%3D%22656.5%22%20y2%3D%22380%22%2F%3E%3C%2Fg%3E%0A%3Ctext%20x%3D%2258%22%20y%3D%2226%22%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2215%22%20font-weight%3D%22600%22%20fill%3D%22%231b2733%22%3ERX%20spectrum%2C%20node%20B%20carrier%3C%2Ftext%3E%0A%3Ctext%20x%3D%22742%22%20y%3D%2226%22%20text-anchor%3D%22end%22%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2212%22%20fill%3D%22%237b8794%22%3E1%20MSPS%20span%20%C2%B7%20Blackman-Harris%201024%3C%2Ftext%3E%0A%3Cpolyline%20fill%3D%22none%22%20stroke%3D%22%232f6fd0%22%20stroke-width%3D%221.3%22%20stroke-linejoin%3D%22round%22%20points%3D%2258.0%2C332.2%2059.8%2C329.9%2061.6%2C323.4%2063.4%2C330.3%2065.2%2C329.1%2067.0%2C327.2%2068.8%2C333.3%2070.6%2C327.4%2072.4%2C324.9%2074.2%2C321.7%2076.0%2C332.6%2077.8%2C328.7%2079.6%2C331.7%2081.4%2C319.4%2083.2%2C320.8%2085.0%2C331.1%2086.8%2C315.2%2088.6%2C315.0%2090.4%2C319.7%2092.2%2C320.0%2094.0%2C327.1%2095.8%2C329.1%2097.6%2C320.3%2099.4%2C327.7%20101.2%2C325.3%20103.0%2C324.1%20104.8%2C327.4%20106.6%2C320.0%20108.4%2C320.2%20110.2%2C313.4%20112.0%2C318.5%20113.8%2C316.4%20115.6%2C318.6%20117.4%2C315.9%20119.2%2C319.2%20121.0%2C322.1%20122.8%2C310.2%20124.6%2C310.3%20126.4%2C312.9%20128.2%2C315.1%20130.0%2C321.6%20131.8%2C323.1%20133.6%2C322.3%20135.4%2C326.0%20137.2%2C314.8%20139.0%2C321.0%20140.8%2C313.8%20142.6%2C321.6%20144.4%2C312.5%20146.2%2C314.6%20148.0%2C328.8%20149.8%2C325.6%20151.6%2C314.4%20153.4%2C321.9%20155.2%2C313.9%20157.0%2C323.7%20158.8%2C329.3%20160.6%2C320.5%20162.4%2C318.3%20164.2%2C326.9%20166.0%2C330.0%20167.8%2C326.1%20169.6%2C315.9%20171.4%2C319.3%20173.2%2C329.7%20175.0%2C327.5%20176.8%2C329.6%20178.6%2C330.0%20180.4%2C317.4%20182.2%2C327.0%20184.0%2C320.1%20185.8%2C321.2%20187.6%2C324.5%20189.4%2C314.5%20191.2%2C323.3%20193.0%2C313.6%20194.8%2C321.0%20196.6%2C314.6%20198.4%2C316.5%20200.2%2C314.1%20202.0%2C301.1%20203.8%2C302.3%20205.6%2C309.1%20207.4%2C298.2%20209.2%2C308.1%20211.0%2C304.0%20212.8%2C295.5%20214.6%2C298.2%20216.4%2C306.6%20218.2%2C291.6%20220.0%2C304.3%20221.8%2C303.8%20223.6%2C295.7%20225.4%2C303.7%20227.2%2C305.1%20229.0%2C309.9%20230.8%2C310.9%20232.6%2C304.3%20234.4%2C311.5%20236.2%2C307.3%20238.0%2C312.8%20239.8%2C313.3%20241.6%2C306.8%20243.4%2C316.3%20245.2%2C316.5%20247.0%2C313.2%20248.8%2C325.7%20250.6%2C327.4%20252.4%2C315.9%20254.2%2C318.1%20256.0%2C327.8%20257.8%2C328.9%20259.6%2C319.7%20261.4%2C316.0%20263.2%2C327.5%20265.0%2C314.1%20266.8%2C313.9%20268.6%2C316.9%20270.4%2C318.2%20272.2%2C321.4%20274.0%2C320.4%20275.8%2C303.0%20277.6%2C312.5%20279.4%2C302.5%20281.2%2C307.5%20283.0%2C295.8%20284.8%2C297.3%20286.6%2C300.2%20288.4%2C300.2%20290.2%2C289.5%20292.0%2C298.7%20293.8%2C294.9%20295.6%2C288.5%20297.4%2C283.0%20299.2%2C286.5%20301.0%2C291.8%20302.8%2C281.5%20304.6%2C293.6%20306.4%2C297.4%20308.2%2C294.1%20310.0%2C292.2%20311.8%2C299.6%20313.6%2C298.9%20315.4%2C297.0%20317.2%2C294.9%20319.0%2C303.3%20320.8%2C300.5%20322.6%2C292.8%20324.4%2C292.0%20326.2%2C297.8%20328.0%2C297.4%20329.8%2C299.0%20331.6%2C305.9%20333.4%2C306.7%20335.2%2C305.8%20337.0%2C289.5%20338.8%2C290.8%20340.6%2C283.9%20342.4%2C296.3%20344.2%2C282.7%20346.0%2C281.2%20347.8%2C272.6%20349.6%2C274.3%20351.4%2C257.7%20353.2%2C266.9%20355.0%2C252.7%20356.8%2C242.7%20358.6%2C232.8%20360.4%2C227.8%20362.2%2C220.3%20364.0%2C210.5%20365.8%2C199.9%20367.6%2C200.4%20369.4%2C186.0%20371.2%2C173.5%20373.0%2C165.0%20374.8%2C163.6%20376.6%2C148.7%20378.4%2C139.0%20380.2%2C135.5%20382.0%2C126.8%20383.8%2C123.5%20385.6%2C113.4%20387.4%2C106.8%20389.2%2C110.1%20391.0%2C96.2%20392.8%2C86.5%20394.6%2C85.3%20396.4%2C85.7%20398.2%2C90.1%20400.0%2C84.1%20401.8%2C87.4%20403.6%2C91.3%20405.4%2C87.3%20407.2%2C103.2%20409.0%2C96.6%20410.8%2C113.5%20412.6%2C110.0%20414.4%2C118.6%20416.2%2C129.9%20418.0%2C130.0%20419.8%2C141.5%20421.6%2C148.2%20423.4%2C152.1%20425.2%2C172.1%20427.0%2C185.4%20428.8%2C190.0%20430.6%2C193.1%20432.4%2C210.2%20434.2%2C219.8%20436.0%2C216.6%20437.8%2C229.2%20439.6%2C241.1%20441.4%2C241.6%20443.2%2C258.4%20445.0%2C259.9%20446.8%2C274.2%20448.6%2C276.5%20450.4%2C276.0%20452.2%2C279.4%20454.0%2C284.6%20455.8%2C296.9%20457.6%2C297.3%20459.4%2C304.8%20461.2%2C310.3%20463.0%2C306.6%20464.8%2C302.7%20466.6%2C303.7%20468.4%2C306.8%20470.2%2C303.3%20472.0%2C314.4%20473.8%2C315.9%20475.6%2C310.7%20477.4%2C312.8%20479.2%2C312.7%20481.0%2C308.2%20482.8%2C303.4%20484.6%2C304.1%20486.4%2C305.6%20488.2%2C295.6%20490.0%2C291.9%20491.8%2C299.3%20493.6%2C304.4%20495.4%2C304.2%20497.2%2C289.6%20499.0%2C302.8%20500.8%2C291.6%20502.6%2C293.9%20504.4%2C298.6%20506.2%2C291.2%20508.0%2C304.8%20509.8%2C304.0%20511.6%2C300.1%20513.4%2C308.7%20515.2%2C297.1%20517.0%2C308.7%20518.8%2C312.2%20520.6%2C315.6%20522.4%2C308.0%20524.2%2C312.9%20526.0%2C311.7%20527.8%2C312.9%20529.6%2C311.9%20531.4%2C310.8%20533.2%2C316.4%20535.0%2C325.2%20536.8%2C321.2%20538.6%2C326.4%20540.4%2C329.2%20542.2%2C321.3%20544.0%2C316.8%20545.8%2C324.7%20547.6%2C322.1%20549.4%2C319.6%20551.2%2C312.2%20553.0%2C313.4%20554.8%2C310.0%20556.6%2C305.7%20558.4%2C309.5%20560.2%2C300.9%20562.0%2C296.9%20563.8%2C308.2%20565.6%2C292.3%20567.4%2C293.9%20569.2%2C301.9%20571.0%2C295.0%20572.8%2C290.8%20574.6%2C285.0%20576.4%2C292.9%20578.2%2C289.2%20580.0%2C283.7%20581.8%2C285.0%20583.6%2C282.7%20585.4%2C291.1%20587.2%2C288.6%20589.0%2C296.8%20590.8%2C289.4%20592.6%2C289.0%20594.4%2C293.2%20596.2%2C293.4%20598.0%2C303.2%20599.8%2C293.5%20601.6%2C293.7%20603.4%2C295.3%20605.2%2C304.0%20607.0%2C301.3%20608.8%2C310.4%20610.6%2C302.0%20612.4%2C304.1%20614.2%2C313.5%20616.0%2C318.9%20617.8%2C313.9%20619.6%2C312.9%20621.4%2C310.0%20623.2%2C315.2%20625.0%2C323.3%20626.8%2C310.9%20628.6%2C323.5%20630.4%2C311.7%20632.2%2C322.3%20634.0%2C319.9%20635.8%2C312.6%20637.6%2C323.4%20639.4%2C323.4%20641.2%2C317.5%20643.0%2C314.2%20644.8%2C312.4%20646.6%2C315.0%20648.4%2C310.9%20650.2%2C318.5%20652.0%2C311.2%20653.8%2C325.5%20655.6%2C323.5%20657.4%2C318.7%20659.2%2C322.8%20661.0%2C315.8%20662.8%2C317.5%20664.6%2C319.7%20666.4%2C314.7%20668.2%2C319.7%20670.0%2C324.1%20671.8%2C323.3%20673.6%2C316.1%20675.4%2C315.6%20677.2%2C327.3%20679.0%2C317.2%20680.8%2C315.7%20682.6%2C323.5%20684.4%2C323.1%20686.2%2C329.7%20688.0%2C324.7%20689.8%2C325.8%20691.6%2C324.6%20693.4%2C334.6%20695.2%2C319.7%20697.0%2C327.7%20698.8%2C330.1%20700.6%2C324.1%20702.4%2C328.6%20704.2%2C330.3%20706.0%2C327.6%20707.8%2C338.4%20709.6%2C331.2%20711.4%2C333.9%20713.2%2C325.5%20715.0%2C326.6%20716.8%2C337.9%20718.6%2C335.1%20720.4%2C341.4%20722.2%2C336.9%20724.0%2C331.1%20725.8%2C330.2%20727.6%2C337.7%20729.4%2C340.8%20731.2%2C343.4%20733.0%2C336.9%20734.8%2C332.3%20736.6%2C345.8%20738.4%2C335.6%20740.2%2C348.4%20742.0%2C346.0%22%2F%3E%0A%3Cline%20x1%3D%22400.0%22%20y1%3D%2244%22%20x2%3D%22400.0%22%20y2%3D%22380%22%20stroke%3D%22%23e0574a%22%20stroke-width%3D%221%22%20stroke-dasharray%3D%224%203%22%2F%3E%0A%3Ctext%20x%3D%22406.0%22%20y%3D%2259%22%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2211%22%20fill%3D%22%23c2483c%22%3E910.2%20MHz%3C%2Ftext%3E%0A%3Cg%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2210%22%20fill%3D%22%237b8794%22%20text-anchor%3D%22end%22%3E%3Ctext%20x%3D%2249%22%20y%3D%2247.5%22%3E-20%3C%2Ftext%3E%3Ctext%20x%3D%2249%22%20y%3D%22103.5%22%3E-35%3C%2Ftext%3E%3Ctext%20x%3D%2249%22%20y%3D%22159.5%22%3E-50%3C%2Ftext%3E%3Ctext%20x%3D%2249%22%20y%3D%22215.5%22%3E-65%3C%2Ftext%3E%3Ctext%20x%3D%2249%22%20y%3D%22271.5%22%3E-80%3C%2Ftext%3E%3Ctext%20x%3D%2249%22%20y%3D%22327.5%22%3E-95%3C%2Ftext%3E%3Ctext%20x%3D%2249%22%20y%3D%22383.5%22%3E-110%3C%2Ftext%3E%3C%2Fg%3E%0A%3Cg%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2210%22%20fill%3D%22%237b8794%22%20text-anchor%3D%22middle%22%3E%3Ctext%20x%3D%2258.0%22%20y%3D%22397%22%3E909.70%3C%2Ftext%3E%3Ctext%20x%3D%22143.5%22%20y%3D%22397%22%3E909.83%3C%2Ftext%3E%3Ctext%20x%3D%22229.0%22%20y%3D%22397%22%3E909.95%3C%2Ftext%3E%3Ctext%20x%3D%22314.5%22%20y%3D%22397%22%3E910.08%3C%2Ftext%3E%3Ctext%20x%3D%22400.0%22%20y%3D%22397%22%3E910.20%3C%2Ftext%3E%3Ctext%20x%3D%22485.5%22%20y%3D%22397%22%3E910.33%3C%2Ftext%3E%3Ctext%20x%3D%22571.0%22%20y%3D%22397%22%3E910.45%3C%2Ftext%3E%3Ctext%20x%3D%22656.5%22%20y%3D%22397%22%3E910.58%3C%2Ftext%3E%3Ctext%20x%3D%22742.0%22%20y%3D%22397%22%3E910.70%3C%2Ftext%3E%3C%2Fg%3E%0A%3Ctext%20x%3D%2216%22%20y%3D%22212%22%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2210.5%22%20fill%3D%22%235b6875%22%20transform%3D%22rotate(-90%2016%20212)%22%20text-anchor%3D%22middle%22%3ERelative%20power%20(dB)%3C%2Ftext%3E%0A%3Ctext%20x%3D%22400%22%20y%3D%22412%22%20font-family%3D%22Helvetica%2CArial%2Csans-serif%22%20font-size%3D%2210.5%22%20fill%3D%22%235b6875%22%20text-anchor%3D%22middle%22%3EFrequency%20(MHz)%3C%2Ftext%3E%0A%3C%2Fsvg%3E";
+"use strict";
+(function(){
+
+// ------------------------------------------------------------------ helpers
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const set = (id, text) => { const e = $(id); if(e) e.textContent = text; };
+const cssv = k => (getComputedStyle(document.documentElement)
+  .getPropertyValue(k).trim() || '120,120,120');
+
+function bytes(n){
+  n = Number(n)||0;
+  if(n < 1024) return n + ' B';
+  if(n < 1048576) return (n/1024).toFixed(n < 10240 ? 1 : 0) + ' kB';
+  return (n/1048576).toFixed(2) + ' MB';
+}
+function rate(bps){
+  bps = Number(bps)||0;
+  if(bps < 1000) return bps.toFixed(0) + ' b/s';
+  if(bps < 1e6) return (bps/1000).toFixed(bps < 10000 ? 1 : 0) + ' kb/s';
+  return (bps/1e6).toFixed(2) + ' Mb/s';
+}
+function clock(ts){
+  const d = new Date((Number(ts)||Date.now()/1000)*1000);
+  return d.toTimeString().slice(0,5);
+}
+function ext(name){
+  const m = /\.([A-Za-z0-9]{1,5})$/.exec(name||'');
+  return m ? m[1].toUpperCase().slice(0,4) : 'FILE';
+}
+function initials(nick){
+  return String(nick||'?').trim().split(/\s+/).slice(0,2)
+    .map(w => w[0] ? w[0].toUpperCase() : '').join('') || '?';
+}
+const isImage = f => /^image\//.test((f && f.mime) || '');
+
+// ------------------------------------------------------------------- state
+const S = {
+  nick:'me', peerNick:'peer', myAddr:'-', peerAddr:'-', peerUp:false,
+  demo:false, connected:false, rows:new Map(), stats:{},
+  tp:[], snr:[], stick:true,
+  conv:'room', peers:[], unread:{}          // r6a: one transcript per peer
+};
+
+const stream = $('stream'), col = $('col'), logBox = $('log');
+
+// ------------------------------------------------------------ conversations
+// The transcript holds every message; each row carries the conversation it
+// belongs to and only the active one is shown. Switching is therefore a
+// filter, not a refetch - the history is already in the page.
+function convLabel(c){
+  if(c === 'room') return 'Room';
+  const p = S.peers.find(x => x.conv === c);
+  return p ? (p.nick || ('Node ' + p.addr)) : c;
+}
+function renderConvBar(){
+  const bar = $('convbar');
+  if(!bar) return;
+  const items = [{conv:'room', nick:'Room', up:true, room:true}].concat(S.peers);
+  bar.innerHTML = items.map(p => {
+    const active = p.conv === S.conv;
+    const unread = !active && S.unread[p.conv] > 0;
+    return '<button class="conv' + (active ? ' active' : '') +
+           (unread ? ' unread' : '') + '" data-conv="' + esc(p.conv) + '">' +
+           (p.room ? '' : '<span class="cdot' + (p.up ? ' up' : '') + '"></span>') +
+           esc(p.room ? 'Room' : (p.nick || ('Node ' + p.addr))) +
+           '<span class="cbadge">' + (S.unread[p.conv] || 0) + '</span></button>';
+  }).join('');
+}
+function applyFilter(){
+  S.rows.forEach(row => {
+    row.style.display = (row.dataset.conv || 'room') === S.conv ? '' : 'none';
+  });
+}
+function setConv(conv){
+  S.conv = conv;
+  S.unread[conv] = 0;
+  renderConvBar();
+  applyFilter();
+  scrollDown(true);
+  const box = $('input');
+  if(box) box.placeholder = conv === 'room'
+    ? 'Message the room\u2026'
+    : 'Message ' + convLabel(conv) + ' directly\u2026';
+}
+function setPeers(list){
+  if(!Array.isArray(list)) return;
+  S.peers = list.map(p => ({addr:p.addr, nick:p.nick, up:!!p.up,
+                            conv:p.conv || ('p' + p.addr)}));
+  if(S.conv !== 'room' && !S.peers.some(p => p.conv === S.conv)) S.conv = 'room';
+  renderConvBar();
+}
+document.addEventListener('click', e => {
+  const chip = e.target.closest && e.target.closest('.conv');
+  if(chip && chip.dataset.conv) setConv(chip.dataset.conv);
+});
+
+// --------------------------------------------------------------- transcript
+function atBottom(){
+  return stream.scrollHeight - stream.scrollTop - stream.clientHeight < 60;
+}
+function scrollDown(force){
+  if(force || S.stick){
+    stream.scrollTop = stream.scrollHeight;
+    if($('jump')) $('jump').classList.remove('show');
+  } else if($('jump')) $('jump').classList.add('show');
+}
+stream.addEventListener('scroll', () => {
+  S.stick = atBottom();
+  if(S.stick && $('jump')) $('jump').classList.remove('show');
+});
+if($('jump')) $('jump').onclick = () => { S.stick = true; scrollDown(true); };
+
+const STATE = {
+  queued:   {icon:'&#9675;',          cls:'pending', title:'queued for transmission'},
+  sent:     {icon:'&#10003;',         cls:'pending', title:'transmitted, waiting for the acknowledgement'},
+  sending:  {icon:'&#8942;',          cls:'pending', title:'transmitting'},
+  delivered:{icon:'&#10003;&#10003;', cls:'ok',      title:'acknowledged by the peer'},
+  received: {icon:'&#8595;',          cls:'ok',      title:'received'},
+  receiving:{icon:'&#8942;',          cls:'pending', title:'receiving'},
+  failed:   {icon:'&#9888;',          cls:'bad',     title:'no acknowledgement after every retry'},
+  corrupt:  {icon:'&#9888;',          cls:'bad',     title:'reassembled but the CRC did not match'}
+};
+
+// The static half of a bubble. Rebuilt only when the author, the text or the
+// attachment itself changes - rewriting it on every fragment would restart the
+// image download several times a second.
+function headHTML(m){
+  const out = m.dir === 'out';
+  let h = '';
+  if(m.kind === 'system') return '<div class="text">' + esc(m.text) + '</div>';
+  h += '<div class="who-line"><span class="n">' +
+       esc(out ? (m.nick || S.nick) : (m.nick || 'peer')) +
+       '</span><span class="a">addr ' + esc(m.addr) + '</span></div>';
+  if(m.kind === 'text'){
+    h += '<div class="text">' + esc(m.text) + '</div>';
+    return h;
+  }
+  const f = m.file || {};
+  if(isImage(f) && f.url){
+    h += '<figure class="shot" data-full="' + esc(f.url) + '">' +
+           '<div class="shot-img"><img src="' + esc(f.url) + '" alt="' +
+             esc(f.name) + '" loading="lazy"></div>' +
+           '<figcaption><span class="fn">' + esc(f.name) + '</span>' +
+             '<span class="fs">' + bytes(f.size) + '</span>' +
+             '<a class="dl" href="' + esc(f.url) + '" download title="save">' +
+               '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
+               'stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+               'stroke-linejoin="round"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/>' +
+               '<path d="M5 19h14"/></svg></a>' +
+           '</figcaption></figure>';
+    return h;
+  }
+  if(isImage(f)){
+    // Still arriving: a framed placeholder rather than a broken image.
+    h += '<figure class="shot pending-shot"><div class="shot-img skel">' +
+         '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" ' +
+         'stroke="currentColor" stroke-width="1.6" stroke-linecap="round">' +
+         '<rect x="3" y="4" width="18" height="16" rx="3"/>' +
+         '<circle cx="8.5" cy="9.5" r="1.6"/><path d="m4 17 5-5 4 4 3-2 4 4"/>' +
+         '</svg></div><figcaption><span class="fn">' + esc(f.name) +
+         '</span><span class="fs">' + bytes(f.size) + '</span></figcaption>' +
+         '</figure>';
+    return h;
+  }
+  h += '<div class="filecard"><span class="chip">' + esc(ext(f.name)) +
+       '</span><span class="fmeta"><span class="fn">' + esc(f.name) +
+       '</span><span class="fs">' + bytes(f.size) +
+       (f.url ? ' &middot; <a href="' + esc(f.url) + '" download>save</a>' : '') +
+       '</span></span></div>';
+  return h;
+}
+
+function headSig(m){
+  const f = m.file || {};
+  return [m.kind, m.dir, m.nick, m.addr, m.text, f.name, f.mime, f.url, f.size]
+    .join(' ');
+}
+
+// The live half: transfer progress, the current note, and the receipt line.
+function tailHTML(m){
+  let h = '';
+  if(m.kind === 'file'){
+    const p = m.progress || {};
+    const busy = m.state === 'sending' || m.state === 'receiving'
+                 || m.state === 'queued';
+    if(p.total && busy){
+      const pct = clamp(100 * (p.done||0) / p.total, 0, 100);
+      h += '<div class="prog"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+           '<div class="progtxt"><span>' + (p.done||0) + ' / ' + p.total +
+           ' fragments</span><span>' + pct.toFixed(0) + '%</span></div>';
+    }
+  }
+  if(m.note) h += '<div class="note">' + esc(m.note) + '</div>';
+  if(m.kind === 'system') return h;
+
+  const st = STATE[m.state] || {icon:'', cls:'pending', title:m.state||''};
+  h += '<div class="meta">';
+  if(m.frames > 1) h += '<span class="badge">' + m.frames + ' frames</span>';
+  if(m.tries > 1) h += '<span class="badge warn">retry &times;' + (m.tries-1) + '</span>';
+  if(m.crc) h += '<span class="badge ' + (m.state === 'corrupt' ? 'bad' : 'ok') +
+                 '">CRC ' + esc(m.crc) + '</span>';
+  h += '<span class="time">' + clock(m.ts) + '</span>';
+  h += '<span class="st ' + st.cls + '" title="' + esc(st.title) + '">' +
+       st.icon + '</span></div>';
+  return h;
+}
+
+function avatarHTML(m){
+  if(m.kind === 'system') return '';
+  return '<div class="avatar ' + (m.dir === 'out' ? 'me' : 'them') + '">' +
+         esc(initials(m.dir === 'out' ? (m.nick || S.nick) : m.nick)) + '</div>';
+}
+
+function render(m){
+  const key = String(m.dir) + ':' + String(m.id);
+  let row = S.rows.get(key);
+  const wasBottom = atBottom();
+  if(!row){
+    row = document.createElement('div');
+    row.className = 'row ' + (m.kind === 'system'
+      ? 'sys ' + (m.level||'info') : (m.dir === 'out' ? 'out' : 'in'));
+    row.innerHTML = avatarHTML(m) +
+      '<div class="bubble"><div class="head"></div><div class="tail"></div></div>';
+    col.appendChild(row);
+    S.rows.set(key, row);
+    row.dataset.conv = m.conv || 'room';
+    if(row.dataset.conv !== S.conv){
+      row.style.display = 'none';
+      if(m.dir === 'in'){
+        S.unread[row.dataset.conv] = (S.unread[row.dataset.conv] || 0) + 1;
+        renderConvBar();
+      }
+    }
+  }
+  const sig = headSig(m);
+  if(row.dataset.sig !== sig){
+    row.dataset.sig = sig;
+    row.querySelector('.head').innerHTML = headHTML(m);
+  }
+  row.querySelector('.tail').innerHTML = tailHTML(m);
+  // An image only takes up space once it has decoded, so a transcript that was
+  // scrolled to the bottom would drift up under it.
+  row.querySelectorAll('.shot img').forEach(img => {
+    if(!img.complete) img.addEventListener('load', () => scrollDown(false), {once:true});
+  });
+  S.stick = wasBottom;
+  scrollDown(false);
+}
+
+function addLog(line, ts){
+  if(!logBox) return;
+  const d = document.createElement('div');
+  d.innerHTML = '<span class="t">' + clock(ts) + '</span>' + esc(line);
+  logBox.appendChild(d);
+  while(logBox.children.length > 300) logBox.removeChild(logBox.firstChild);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+// ----------------------------------------------------------------- lightbox
+const lb = document.createElement('div');
+lb.className = 'lightbox';
+lb.innerHTML = '<img alt="attachment"><button class="lbx" aria-label="close">&times;</button>';
+document.body.appendChild(lb);
+const closeLb = () => lb.classList.remove('show');
+lb.addEventListener('click', closeLb);
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeLb(); });
+document.addEventListener('click', e => {
+  const fig = e.target.closest && e.target.closest('.shot[data-full]');
+  if(!fig || (e.target.closest && e.target.closest('.dl'))) return;
+  lb.querySelector('img').src = fig.dataset.full;
+  lb.classList.add('show');
+});
+
+// ---------------------------------------------------------------- telemetry
+function tile(id, value, unit, cls){
+  const el = $(id); if(!el) return;
+  const v = el.querySelector('.v'); if(!v) return;
+  v.innerHTML = value + (unit ? '<small>' + unit + '</small>' : '');
+  el.classList.remove('good','warn','bad');
+  if(cls) el.classList.add(cls);
+}
+
+function applyStats(s){
+  if(s && Array.isArray(s.peers)) setPeers(s.peers);
+  S.stats = s;
+  if(s.nick) S.nick = s.nick;
+  if(s.peer_nick) S.peerNick = s.peer_nick;
+  setPeer(s.peer_up, s.peer_nick, s.my_addr, s.peer_addr);
+
+  const r = s.radio || {}, snr = r.snr_db;
+  tile('tSnr', snr == null ? '--' : snr.toFixed(1), 'dB',
+       snr == null ? null : snr > 12 ? 'good' : snr > 6 ? 'warn' : 'bad');
+  tile('tLvl', r.level_db == null ? '--' : r.level_db.toFixed(0), 'dB');
+  tile('tTx', (s.tx_bps/1000).toFixed(1), 'kb/s');
+  tile('tRx', (s.rx_bps/1000).toFixed(1), 'kb/s');
+  const per = Number(s.per)||0;
+  tile('tPer', per.toFixed(1), '%', per < 2 ? 'good' : per < 10 ? 'warn' : 'bad');
+  tile('tQ', (1000*(s.backlog||0)).toFixed(0), 'ms');
+
+  set('cTxF', s.tx_frames||0);
+  set('cRxOk', s.rx_valid||0);
+  set('cRetx', s.retx||0);
+  set('cRxBad', s.rx_bad||0);
+  set('cAck', (s.ack_tx||0) + ' / ' + (s.ack_rx||0));
+  set('cDup', s.rx_dup||0);
+  set('cDrop', s.dropped||0);
+  set('cFrag', s.frag_lost||0);
+  set('kPer', per.toFixed(2) + ' %');
+  set('kQ', s.queued||0);
+  set('kBk', (1000*(s.backlog||0)).toFixed(0) + ' ms');
+  set('kIdle', (s.idle_tx||0) + ' / ' + (s.idle_rx||0));
+  set('kRounds', s.file_rounds||0);
+  set('kPend', s.pending || 'idle');
+  set('kBytes', bytes(s.tx_payload_bytes) + ' / ' + bytes(s.rx_payload_bytes));
+  set('kUp', Math.floor(s.uptime||0) + ' s');
+  set('kRev', s.revision || '--');
+  set('thNow', rate(s.tx_bps) + ' / ' + rate(s.rx_bps));
+  set('snrNow', snr == null ? '-- dB' : snr.toFixed(1) + ' dB');
+  if(s.tx_freq && s.rx_freq)
+    set('subtitle', (s.tx_freq/1e6).toFixed(1) + ' TX · ' +
+        (s.rx_freq/1e6).toFixed(1) + ' RX MHz · FDD · differential BPSK');
+  if(s.frag_size)
+    set('cap', 'frag ' + s.frag_size + ' B · ACK ' +
+        (s.ack_timeout||0).toFixed(2) + ' s · ' + (s.max_retries||0) +
+        ' retries · ' + ((s.sym_rate||0)/1000).toFixed(0) + ' ksym/s');
+
+  S.tp.push([s.tx_bps||0, s.rx_bps||0]); if(S.tp.length > 150) S.tp.shift();
+  S.snr.push(snr == null ? null : snr);   if(S.snr.length > 150) S.snr.shift();
+  drawSparks();
+}
+
+function setPeer(up, nick, mine, theirs){
+  if(up != null) S.peerUp = !!up;
+  const led = $('led');
+  if(led) led.className = 'led' + (S.peerUp ? ' up' : '');
+  set('peerName', nick || S.peerNick);
+  set('peerState', S.peerUp ? 'online' : 'no carrier');
+  if(mine != null){ S.myAddr = mine; S.peerAddr = theirs; }
+  set('addrs', S.myAddr + ' → ' + S.peerAddr);
+  set('title', S.nick);
+  const av = $('peerAvatar');
+  if(av) av.textContent = initials(nick || S.peerNick);
+}
+
+function fitCanvas(c){
+  const d = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  if(!w || !h) return null;
+  if(c.width !== w*d || c.height !== h*d){ c.width = w*d; c.height = h*d; }
+  const ctx = c.getContext('2d');
+  ctx.setTransform(d,0,0,d,0,0);
+  ctx.clearRect(0,0,w,h);
+  return [ctx,w,h];
+}
+function series(ctx, w, h, data, pick, rgb, max){
+  const n = data.length; if(n < 2) return;
+  ctx.beginPath();
+  for(let i=0;i<n;i++){
+    const v = pick(data[i]);
+    const x = w*i/(n-1), y = h - 3 - (h-6)*clamp((v||0)/max,0,1);
+    i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+  }
+  ctx.strokeStyle = 'rgb(' + rgb + ')';
+  ctx.lineWidth = 1.7; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+  const g = ctx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0, 'rgba(' + rgb + ',.20)');
+  g.addColorStop(1, 'rgba(' + rgb + ',0)');
+  ctx.fillStyle = g; ctx.fill();
+}
+function gridlines(ctx,w,h){
+  ctx.strokeStyle = 'rgb(' + cssv('--c-grid') + ')';
+  ctx.lineWidth = 1;
+  for(let i=1;i<3;i++){
+    const y = Math.round(h*i/3)+.5;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+  }
+}
+function drawSparks(){
+  const a = $('sparkTp');
+  if(a){
+    const fit = fitCanvas(a);
+    if(fit){
+      const ctx = fit[0], w = fit[1], h = fit[2];
+      gridlines(ctx,w,h);
+      const peak = Math.max(1000, ...S.tp.map(p => Math.max(p[0],p[1])));
+      series(ctx,w,h,S.tp,p=>p[0],cssv('--c-tx'),peak);
+      series(ctx,w,h,S.tp,p=>p[1],cssv('--c-rx'),peak);
+    }
+  }
+  const b = $('sparkSnr');
+  if(b){
+    const fit = fitCanvas(b);
+    if(fit){
+      const ctx = fit[0], w = fit[1], h = fit[2];
+      gridlines(ctx,w,h);
+      series(ctx,w,h,S.snr,v=>v,cssv('--c-snr'),30);
+    }
+  }
+}
+window.addEventListener('resize', drawSparks);
+
+// ------------------------------------------------------------------- banner
+function banner(kind, text){
+  const b = $('banner');
+  if(!b) return;
+  if(!kind){ b.className = 'banner'; return; }
+  b.className = 'banner show ' + kind;
+  set('bannerText', text);
+}
+
+// ------------------------------------------------------------------- events
+function handle(ev){
+  switch(ev.type){
+    case 'hello':    loadState(ev.state); break;
+    case 'message':  render(ev.message); break;
+    case 'stats':    applyStats(ev.stats); break;
+    case 'log':      addLog(ev.line, ev.t); break;
+    case 'peer':     setPeer(ev.up); if(ev.peers) setPeers(ev.peers); break;
+    case 'identity': S.nick = ev.nick; S.peerNick = ev.peer_nick;
+                     if(ev.peers) setPeers(ev.peers);
+                     setPeer(null, ev.peer_nick); break;
+    case 'reset':    col.innerHTML=''; S.rows.clear(); S.unread={}; renderConvBar(); break;
+  }
+}
+
+function loadState(st){
+  if(!st) return;
+  S.nick = st.nick; S.peerNick = st.peer_nick;
+  S.myAddr = st.my_addr; S.peerAddr = st.peer_addr;
+  col.innerHTML=''; S.rows.clear(); S.unread = {};
+  setPeers(st.peers || []);
+  (st.messages||[]).forEach(render);
+  (st.logs||[]).forEach(l => addLog(l[1], l[0]));
+  if(st.stats) applyStats(st.stats);
+  setPeer(st.stats && st.stats.peer_up, st.peer_nick, st.my_addr, st.peer_addr);
+  setConv(S.conv);
+  scrollDown(true);
+}
+
+let es = null, sawHello = false;
+function connect(){
+  try{ es = new EventSource('/events'); }catch(e){ return startDemo(); }
+  es.onopen = () => { S.connected = true; if(!S.demo) banner(null); };
+  es.onmessage = e => {
+    sawHello = true; S.connected = true; S.demo = false; banner(null);
+    try{ handle(JSON.parse(e.data)); }catch(err){}
+  };
+  es.onerror = () => {
+    S.connected = false;
+    if(!sawHello) return;              // the demo watchdog takes over instead
+    banner('lost', 'radio process not reachable - reconnecting...');
+  };
+}
+
+// ------------------------------------------------------------------ sending
+async function post(url, body, headers){
+  const r = await fetch(url, {method:'POST', body: body, headers: headers||{}});
+  return r.json().catch(() => ({}));
+}
+function sendText(){
+  const box = $('input');
+  const t = box.value.trim();
+  if(!t) return;
+  box.value=''; resize(); if($('send')) $('send').disabled = true;
+  if(S.demo) return demoSend(t);
+  const target = S.conv === 'room' ? 'room' : S.conv.slice(1);
+  post('/api/send', JSON.stringify({text:t, target:target}),
+       {'Content-Type':'application/json'})
+    .catch(() => addLog('send failed - is the flowgraph running?'));
+}
+function sendFiles(list){
+  [...list].forEach(f => {
+    if(S.demo) return demoFile(f);
+    const target = S.conv === 'room' ? 'room' : S.conv.slice(1);
+    f.arrayBuffer().then(buf => post('/api/upload', buf, {
+      'X-Filename': f.name, 'X-Filetype': f.type || 'application/octet-stream',
+      'X-Target': target,
+      'Content-Type': 'application/octet-stream'
+    })).catch(() => addLog('upload failed'));
+  });
+}
+
+const input = $('input');
+function resize(){
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+}
+input.addEventListener('input', () => {
+  resize();
+  if($('send')) $('send').disabled = !input.value.trim();
+});
+input.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendText(); }
+});
+if($('send')) $('send').onclick = sendText;
+if($('attach')) $('attach').onclick = () => $('file').click();
+if($('file')) $('file').onchange = e => { sendFiles(e.target.files); e.target.value=''; };
+if($('togglePanel')) $('togglePanel').onclick = () => {
+  const p = $('panel');
+  const open = p.classList.toggle('open');
+  $('togglePanel').classList.toggle('on', open);
+  document.body.classList.toggle('panel-open', open);
+  drawSparks();
+};
+document.addEventListener('paste', e => {
+  const items = [...((e.clipboardData && e.clipboardData.files) || [])];
+  if(items.length){ e.preventDefault(); sendFiles(items); }
+});
+['dragenter','dragover'].forEach(t => stream.addEventListener(t, e => {
+  e.preventDefault(); stream.classList.add('drag');
+}));
+['dragleave','drop'].forEach(t => stream.addEventListener(t, e => {
+  e.preventDefault();
+  if(t === 'drop' && e.dataTransfer) sendFiles(e.dataTransfer.files);
+  stream.classList.remove('drag');
+}));
+
+// ---------------------------------------------------------------- demo mode
+// With no radio answering, the page still has to be worth looking at: it runs a
+// self-contained mock so the layout can be reviewed and demonstrated with no
+// hardware. The banner makes it unmistakable.
+let demoId = 100;
+function startDemo(){
+  if(S.demo) return;
+  S.demo = true;
+  banner('demo', 'Demo mode - no radio process on this port. Start the flowgraph and reload to go live.');
+  S.nick = 'Node A'; S.peerNick = 'Node B'; S.myAddr = 1; S.peerAddr = 2;
+  setPeer(true, 'Node B', 1, 2);
+  const t = Date.now()/1000;
+  [
+    {id:'d1',dir:'sys',kind:'system',level:'info',ts:t-240,
+     text:'link up [r5-applayer] · my_addr=1 peer_addr=2 · frag 256 B · ACK 0.50 s · 5 retries'},
+    {id:'d2',dir:'sys',kind:'system',level:'info',ts:t-236,text:'peer 2 reachable'},
+    {id:'d3',dir:'in',kind:'text',nick:'Node B',addr:2,state:'received',ts:t-208,
+     text:'Receiver is locked. Constellation is two tight blobs at 45 dB Rx gain.'},
+    {id:'d4',dir:'out',kind:'text',nick:'Node A',addr:1,state:'delivered',tries:2,ts:t-190,
+     text:'Copy. Dropping Tx attenuation to 20 dB and sending the sweep from the bench run.'},
+    {id:'d5',dir:'out',kind:'file',nick:'Node A',addr:1,state:'delivered',ts:t-150,
+     file:{name:'rx_spectrum_915MHz.png',mime:'image/png',size:41210,url:DEMO_IMAGE},
+     progress:{done:162,total:162}},
+    {id:'d6',dir:'in',kind:'text',nick:'Node B',addr:2,state:'received',ts:t-96,
+     text:'Got it - CRC matched on the first pass, three fragments needed a repair round.'},
+    {id:'d7',dir:'in',kind:'file',nick:'Node B',addr:2,state:'received',ts:t-60,
+     crc:'2820d377',
+     file:{name:'link_budget.csv',mime:'text/csv',size:2841,url:'#'},
+     progress:{done:12,total:12}},
+    {id:'d8',dir:'out',kind:'file',nick:'Node A',addr:1,state:'sending',tries:2,ts:t-8,
+     note:'retransmitting fragment 76',
+     file:{name:'constellation_20dB.png',mime:'image/png',size:25027,url:null},
+     progress:{done:78,total:99}}
+  ].forEach(render);
+  [[t-150,'sending rx_spectrum_915MHz.png: 41210 bytes in 162 fragments'],
+   [t-140,'peer is missing 3 fragments, resending them (round 2)'],
+   [t-132,'peer confirmed rx_spectrum_915MHz.png received complete and CRC-correct'],
+   [t-60,'file chat_files/rx_link_budget.csv written, 2841 bytes, CRC ok'],
+   [t-8,'sending constellation_20dB.png: 25027 bytes in 99 fragments']
+  ].forEach(l => addLog(l[1], l[0]));
+  let k = 0;
+  setInterval(() => {
+    k++;
+    const snr = 14.6 + 2.5*Math.sin(k/9) + (Math.random()-.5)*0.9;
+    applyStats({
+      nick:'Node A', peer_nick:'Node B', peer_up:true, my_addr:1, peer_addr:2,
+      radio:{snr_db:snr, level_db:-34 + 2*Math.sin(k/13), locked:true},
+      tx_bps: 26000 + 9000*Math.sin(k/7), rx_bps: 17000 + 7000*Math.cos(k/5),
+      per: clamp(1.6 + 1.3*Math.sin(k/11), 0, 100),
+      tx_frames: 1902+k*3, rx_valid: 1744+k*3, retx: 24+((k/6)|0),
+      rx_bad: 31+((k/9)|0), ack_tx: 1731+k*3, ack_rx: 1802+k*3, rx_dup: 6,
+      dropped: 1, frag_lost: 3, idle_tx: 902+k, idle_rx: 880+k, file_rounds: 2,
+      queued: (k%7===0)?3:0, backlog: 0.021 + 0.012*Math.abs(Math.sin(k/4)),
+      pending: (k%7===0)?'file-frag 78':null,
+      tx_payload_bytes: 68200+k*400, rx_payload_bytes: 30600+k*260,
+      uptime: 243+k, revision:'r5-applayer', frag_size:256, ack_timeout:0.5,
+      max_retries:5, sym_rate:250000, tx_freq:905.2e6, rx_freq:910.2e6
+    });
+  }, 900);
+}
+function demoSend(text){
+  const id = 'd' + (++demoId);
+  const m = {id:id, dir:'out', kind:'text', nick:S.nick, addr:1, text:text,
+             state:'queued', ts:Date.now()/1000};
+  render(m);
+  setTimeout(() => { m.state='sent'; render(m); }, 260);
+  setTimeout(() => { m.state='delivered'; render(m); }, 950);
+  setTimeout(() => render({id:'d'+(++demoId), dir:'in', kind:'text',
+    nick:'Node B', addr:2, state:'received', ts:Date.now()/1000,
+    text:'(demo peer) acknowledged - ' + text.slice(0,48)}), 1800);
+}
+function demoFile(f){
+  const id = 'd' + (++demoId), url = URL.createObjectURL(f);
+  const m = {id:id, dir:'out', kind:'file', nick:S.nick, addr:1, state:'sending',
+             file:{name:f.name, mime:f.type, size:f.size, url:url},
+             progress:{done:0, total:Math.max(1, Math.ceil(f.size/254))},
+             ts:Date.now()/1000};
+  render(m);
+  const step = () => {
+    m.progress.done = Math.min(m.progress.total,
+                               m.progress.done + Math.ceil(m.progress.total/12));
+    if(m.progress.done >= m.progress.total){ m.state='delivered'; render(m); }
+    else { render(m); setTimeout(step, 240); }
+  };
+  setTimeout(step, 300);
+}
+
+// -------------------------------------------------------------------- start
+connect();
+setTimeout(() => { if(!sawHello) startDemo(); }, 1200);
+resize(); drawSparks();
+})();
+
+</script>
+</body>
+</html>
