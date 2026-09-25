@@ -29,6 +29,23 @@ options:
     state: enabled
 
 blocks:
+- name: frame
+  id: variable
+  parameters:
+    comment: 'Robust frame: 4B preamble (0xAA) for AGC/timing settle + 2B access code
+      (0x2D,0xD4, must match the RX correlate_access_code block) + 1B length + payload
+      + 4B big-endian CRC32(length+payload). Length field makes the frame work for
+      any short text, CRC32 lets the RX reject corrupted copies instead of passing
+      garbage through.'
+    value: bytes([0xAA,0xAA,0xAA,0xAA,0x2D,0xD4,len(msg)]) + msg + zlib.crc32(bytes([len(msg)])
+      + msg).to_bytes(4, "big")
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [688, 24.0]
+    rotation: 0
+    state: enabled
 - name: freq
   id: variable
   parameters:
@@ -41,6 +58,19 @@ blocks:
     coordinate: [208, 112.0]
     rotation: 0
     state: enabled
+- name: msg
+  id: variable
+  parameters:
+    comment: EDIT THIS to change the text message. Max 255 bytes (the frame's length
+      field is a single byte).
+    value: b"Hello World!"
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [328, 120.0]
+    rotation: 0
+    state: enabled
 - name: rrc_taps
   id: variable
   parameters:
@@ -50,7 +80,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [504, 40.0]
+    coordinate: [528, 24.0]
     rotation: 0
     state: enabled
 - name: samp_rate
@@ -86,7 +116,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [408, 40.0]
+    coordinate: [408, 16.0]
     rotation: 0
     state: enabled
 - name: blocks_unpack_k_bits_bb_0
@@ -102,7 +132,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [392, 256.0]
+    coordinate: [280, 312.0]
     rotation: 0
     state: enabled
 - name: blocks_vector_source_x_0
@@ -110,19 +140,20 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    comment: ''
+    comment: "Now sourced from the \"frame\" variable instead\n of a hardcoded list,\
+      \ so it always matches msg/CRC."
     maxoutbuf: '0'
     minoutbuf: '0'
     repeat: 'True'
     tags: '[]'
     type: byte
-    vector: '[0xAA,0xAA,0xAA,0xAA, 0x2D,0xD4] + list(b"Hello World!")'
+    vector: list(frame)
     vlen: '1'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [120, 240.0]
+    coordinate: [64, 328.0]
     rotation: 0
     state: enabled
 - name: digital_chunks_to_symbols_xx_0
@@ -142,7 +173,28 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [648, 248.0]
+    coordinate: [760, 256.0]
+    rotation: 0
+    state: enabled
+- name: digital_diff_encoder_bb_0
+  id: digital_diff_encoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    coding: digital.DIFF_DIFFERENTIAL
+    comment: "Differential precoding of the whole bitstream \n(preamble+access code+payload).\
+      \ This makes the\n RX immune to the Costas loop's 180-degree phase \nambiguity:\
+      \ a full polarity flip of the received bits no \nlonger changes the decoded\
+      \ output, so the RX \naccess-code correlator will always find the sync \nword\
+      \ without needing to search an inverted copy \nof the bitstream offline."
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    modulus: '2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [456, 288.0]
     rotation: 0
     state: enabled
 - name: iio_pluto_sink_0
@@ -168,7 +220,20 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1184, 164.0]
+    coordinate: [1248, 412.0]
+    rotation: 0
+    state: enabled
+- name: import_0
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: import zlib
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [40, 168.0]
     rotation: 0
     state: enabled
 - name: interp_fir_filter_xxx_0
@@ -187,7 +252,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [896, 248.0]
+    coordinate: [1000, 256.0]
     rotation: 0
     state: enabled
 - name: qtgui_freq_sink_x_0
@@ -221,7 +286,7 @@ blocks:
     color9: '"dark green"'
     comment: ''
     ctrlpanel: 'False'
-    fc: '0'
+    fc: freq
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
@@ -268,7 +333,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1136, 384.0]
+    coordinate: [1160, 624.0]
     rotation: 0
     state: enabled
 - name: qtgui_waterfall_sink_x_0
@@ -299,7 +364,7 @@ blocks:
     color8: '0'
     color9: '0'
     comment: ''
-    fc: '0'
+    fc: freq
     fftsize: '1024'
     freqhalf: 'True'
     grid: 'False'
@@ -329,14 +394,15 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1088, 88.0]
+    coordinate: [1280, 216.0]
     rotation: 0
     state: enabled
 
 connections:
-- [blocks_unpack_k_bits_bb_0, '0', digital_chunks_to_symbols_xx_0, '0']
+- [blocks_unpack_k_bits_bb_0, '0', digital_diff_encoder_bb_0, '0']
 - [blocks_vector_source_x_0, '0', blocks_unpack_k_bits_bb_0, '0']
 - [digital_chunks_to_symbols_xx_0, '0', interp_fir_filter_xxx_0, '0']
+- [digital_diff_encoder_bb_0, '0', digital_chunks_to_symbols_xx_0, '0']
 - [interp_fir_filter_xxx_0, '0', iio_pluto_sink_0, '0']
 - [interp_fir_filter_xxx_0, '0', qtgui_freq_sink_x_0, '0']
 - [interp_fir_filter_xxx_0, '0', qtgui_waterfall_sink_x_0, '0']

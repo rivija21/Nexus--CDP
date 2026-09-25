@@ -1,0 +1,1216 @@
+options:
+  parameters:
+    alias: ''
+    author: ''
+    catch_exceptions: 'True'
+    comment: ''
+    copyright: ''
+    description: Differential QPSK full-duplex FDD PHY for two Pluto/E200 nodes. Needs
+      qpsk_framing.py in this directory.
+    gen_linking: dynamic
+    generate_options: qt_gui
+    generator_class_name: PythonQtGuiGenerator
+    generator_module: gnuradio.grc.workflows.python_qt_gui
+    hier_block_src_path: '.:'
+    id: qpsk_duplex_phy
+    max_nouts: '0'
+    output_language: python
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    thread_safe_setters: ''
+    title: QPSK duplex PHY (Pluto / E200)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [24, 32.0]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: access_threshold
+  id: variable
+  parameters:
+    comment: bit errors allowed in access code
+    value: '3'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 200.0]
+    rotation: 0
+    state: enabled
+- name: bandwidth
+  id: variable
+  parameters:
+    comment: AD9361 analog filter
+    value: 1.5e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [472, 200.0]
+    rotation: 0
+    state: enabled
+- name: buffer_size
+  id: variable
+  parameters:
+    comment: ''
+    value: '16384'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [600, 200.0]
+    rotation: 0
+    state: enabled
+- name: eq_alg
+  id: variable_adaptive_algorithm
+  parameters:
+    comment: CMA
+    cons: qpsk
+    delta: '10.0'
+    ffactor: '0.99'
+    modulus: '4'
+    step_size: 1e-4
+    type: cma
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [896, 376.0]
+    rotation: 0
+    state: enabled
+- name: excess_bw
+  id: variable
+  parameters:
+    comment: matched on TX and RX
+    value: '0.35'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [288, 208.0]
+    rotation: 0
+    state: enabled
+- name: f_high
+  id: variable
+  parameters:
+    comment: ''
+    value: 917e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [88, 180]
+    rotation: 0
+    state: enabled
+- name: f_low
+  id: variable
+  parameters:
+    comment: FDD pair
+    value: 915e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 180]
+    rotation: 0
+    state: enabled
+- name: nfilts
+  id: variable
+  parameters:
+    comment: ''
+    value: '32'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [192, 208.0]
+    rotation: 0
+    state: enabled
+- name: phase_bw
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Costas loop BW
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0.0'
+    step: '0.005'
+    stop: '0.5'
+    value: 6.28/100.0
+    widget: slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [488, 410]
+    rotation: 0
+    state: enabled
+- name: qpsk
+  id: variable_constellation_rect
+  parameters:
+    comment: ''
+    const_points: '[0.707+0.707j, -0.707+0.707j, -0.707-0.707j, 0.707-0.707j]'
+    imag_sect: '2'
+    precision: '8'
+    real_sect: '2'
+    rot_sym: '4'
+    soft_dec_lut: None
+    sym_map: '[0, 1, 2, 3]'
+    w_imag_sect: '1'
+    w_real_sect: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [664, 388.0]
+    rotation: 0
+    state: enabled
+- name: rrc_taps
+  id: variable
+  parameters:
+    comment: ''
+    value: firdes.root_raised_cosine(nfilts, nfilts, 1.0/float(sps), excess_bw, 11*sps*nfilts)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 330]
+    rotation: 0
+    state: enabled
+- name: rx_freq
+  id: variable
+  parameters:
+    comment: ''
+    value: f_high if role == 'a' else f_low
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 32.0]
+    rotation: 0
+    state: enabled
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: 2e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 260]
+    rotation: 0
+    state: enabled
+- name: sps
+  id: variable
+  parameters:
+    comment: samples per symbol
+    value: '4'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [96, 260]
+    rotation: 0
+    state: enabled
+- name: timing_bw
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: Timing loop BW
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0.0'
+    step: '0.005'
+    stop: '0.2'
+    value: 6.28/100.0
+    widget: slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [328, 410]
+    rotation: 0
+    state: enabled
+- name: tx_amp
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: TX amplitude
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0.0'
+    step: '0.01'
+    stop: '1.0'
+    value: '0.6'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [168, 410]
+    rotation: 0
+    state: enabled
+- name: tx_atten
+  id: variable_qtgui_range
+  parameters:
+    comment: ''
+    gui_hint: ''
+    label: TX attenuation (dB)
+    min_len: '200'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0'
+    step: '1'
+    stop: '40'
+    value: '10'
+    widget: counter_slider
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 410]
+    rotation: 0
+    state: enabled
+- name: tx_freq
+  id: variable
+  parameters:
+    comment: ''
+    value: f_low if role == 'a' else f_high
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [384, 112.0]
+    rotation: 0
+    state: enabled
+- name: analog_agc2_xx_0
+  id: analog_agc2_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    attack_rate: 1e-1
+    comment: normalises the input so the\nCMA equaliser converges fast
+    decay_rate: 1e-2
+    gain: '1.0'
+    max_gain: '65536'
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+    reference: '1.0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [408, 904.0]
+    rotation: 0
+    state: enabled
+- name: blocks_message_debug_0
+  id: blocks_message_debug
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: received frames print here
+    en_uvec: 'True'
+    log_level: info
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2616, 928.0]
+    rotation: 0
+    state: enabled
+- name: blocks_message_strobe_0
+  id: blocks_message_strobe
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: '''QPSK link test !'' every 2 s -- remove once the\nPython chat application
+      drives this port'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    msg: pmt.cons(pmt.PMT_NIL, pmt.init_u8vector(16, [81,80,83,75,32,108,105,110,107,32,116,101,115,116,32,33]))
+    period: '2000'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [56, 640.0]
+    rotation: 0
+    state: enabled
+- name: blocks_multiply_const_vxx_0
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: keep the DAC out of clipping
+    const: tx_amp
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [840, 624.0]
+    rotation: 0
+    state: enabled
+- name: blocks_unpack_k_bits_bb_0
+  id: blocks_unpack_k_bits_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 2 bits per symbol, MSB first
+    k: '2'
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1912, 808.0]
+    rotation: 0
+    state: enabled
+- name: digital_constellation_decoder_cb_0
+  id: digital_constellation_decoder_cb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: symbols -> constellation index
+    constellation: qpsk
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1448, 808.0]
+    rotation: 0
+    state: enabled
+- name: digital_constellation_modulator_0
+  id: digital_constellation_modulator
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: differential QPSK + RRC
+    constellation: qpsk
+    differential: 'True'
+    excess_bw: excess_bw
+    log: 'False'
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+    samples_per_symbol: sps
+    truncate: 'False'
+    verbose: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [576, 624.0]
+    rotation: 0
+    state: enabled
+- name: digital_correlate_access_code_tag_xx_0
+  id: digital_correlate_access_code_tag_xx
+  parameters:
+    access_code: '''1010110011011101101001001110001011110010100011000010000011111100'''
+    affinity: ''
+    alias: ''
+    comment: GNU Radio default access code
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+    tagname: '''pkt_start'''
+    threshold: access_threshold
+    type: byte
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2120, 800.0]
+    rotation: 0
+    state: enabled
+- name: digital_costas_loop_cc_0
+  id: digital_costas_loop_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: carrier phase / fine frequency
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+    order: '4'
+    use_snr: 'False'
+    w: phase_bw
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1176, 824.0]
+    rotation: 0
+    state: enabled
+- name: digital_diff_decoder_bb_0
+  id: digital_diff_decoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    coding: digital.DIFF_DIFFERENTIAL
+    comment: removes the QPSK phase ambiguity
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+    modulus: '4'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1696, 800.0]
+    rotation: 0
+    state: enabled
+- name: digital_linear_equalizer_0
+  id: digital_linear_equalizer
+  parameters:
+    adapt_after_training: 'True'
+    affinity: ''
+    alg: eq_alg
+    alias: ''
+    comment: CMA multipath compensation
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+    num_taps: '15'
+    sps: '2'
+    training_sequence: '[ ]'
+    training_start_tag: corr_est
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [904, 848.0]
+    rotation: 0
+    state: enabled
+- name: digital_pfb_clock_sync_xxx_0
+  id: digital_pfb_clock_sync_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: timing recovery, 2 sps out
+    filter_size: nfilts
+    init_phase: nfilts/2
+    loop_bw: timing_bw
+    max_dev: '1.5'
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+    osps: '2'
+    sps: sps
+    taps: rrc_taps
+    type: ccf
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [632, 868.0]
+    rotation: 0
+    state: enabled
+- name: frame_sink
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"QPSK chat -- frame sink (GRC embedded block).\n\nConsumes\
+      \ the tagged bit stream from Correlate Access Code - Tag and emits one\nPDU\
+      \ on 'rx' per header- and CRC-valid frame.\nRequires qpsk_framing.py in the\
+      \ same directory as this flowgraph.\n\"\"\"\nimport os\nimport sys\n\nimport\
+      \ numpy as np\nimport pmt\nfrom gnuradio import gr\n\n# ---------- inlined from\
+      \ qpsk_framing.py ----------\nimport zlib\nfrom collections import deque\n\n\
+      import numpy as np\n\n# --------------------------------------------------------------------------\n\
+      # constants\n# --------------------------------------------------------------------------\n\
+      \n# gnuradio.digital.packet_utils.default_access_code (0xACDDA4E2F28C20FC)\n\
+      ACCESS_CODE = \"1010110011011101101001001110001011110010100011000010000011111100\"\
+      \nACCESS_CODE_BYTES = bytes(\n    int(ACCESS_CODE[i:i + 8], 2) for i in range(0,\
+      \ len(ACCESS_CODE), 8)\n)\n\nHDR_BYTES = 4          # len(2) + ~len(2)\nHDR_BITS\
+      \ = HDR_BYTES * 8\nCRC_BYTES = 4\nMAX_PAYLOAD = 1024     # link-layer payload\
+      \ ceiling; keep in sync with qpsk_chat\nMAX_BODY = MAX_PAYLOAD + CRC_BYTES\n\
+      MIN_BODY = CRC_BYTES + 1\n\n# Candidate bit offsets tried at a correlator tag\
+      \ before giving up.  Different\n# GNU Radio releases place the tag on the last\
+      \ access-code bit or on the first\n# bit after it; probing removes the ambiguity\
+      \ instead of hard-coding it.\nPROBE_OFFSETS = (0, 1, -1)\n\n\n# --------------------------------------------------------------------------\n\
+      # PN9 whitening\n# --------------------------------------------------------------------------\n\
+      \ndef _make_pn(nbytes):\n    \"\"\"PN9 (x^9 + x^5 + 1) byte sequence, MSB-first,\
+      \ seed all-ones.\"\"\"\n    state = 0x1FF\n    out = bytearray()\n    for _\
+      \ in range(nbytes):\n        b = 0\n        for _ in range(8):\n           \
+      \ bit = ((state >> 8) ^ (state >> 4)) & 1\n            state = ((state << 1)\
+      \ | bit) & 0x1FF\n            b = (b << 1) | bit\n        out.append(b)\n  \
+      \  return bytes(out)\n\n\n_PN_LEN = 511\nPN = _make_pn(_PN_LEN)\n_PN_ARR = np.frombuffer(PN,\
+      \ dtype=np.uint8)\n\n\ndef pn_bytes(n, phase=0):\n    \"\"\"n bytes of the PN\
+      \ sequence starting at `phase` (cyclic).\"\"\"\n    idx = (np.arange(n, dtype=np.int64)\
+      \ + phase) % _PN_LEN\n    return _PN_ARR[idx]\n\n\ndef whiten(data, phase=0):\n\
+      \    \"\"\"XOR `data` (bytes) with the PN sequence.  Self-inverse.\"\"\"\n \
+      \   a = np.frombuffer(data, dtype=np.uint8)\n    return (a ^ pn_bytes(len(a),\
+      \ phase)).tobytes()\n\n\n# --------------------------------------------------------------------------\n\
+      # transmit side\n# --------------------------------------------------------------------------\n\
+      \ndef build_frame(payload):\n    \"\"\"bytes -> packed frame bytes ready to\
+      \ hand to the modulator.\"\"\"\n    if not payload:\n        raise ValueError(\"\
+      empty payload\")\n    if len(payload) > MAX_PAYLOAD:\n        raise ValueError(\"\
+      payload %d > MAX_PAYLOAD %d\" % (len(payload), MAX_PAYLOAD))\n    crc = zlib.crc32(payload)\
+      \ & 0xFFFFFFFF\n    body = bytes(payload) + crc.to_bytes(4, \"big\")\n    ln\
+      \ = len(body)\n    hdr = ln.to_bytes(2, \"big\") + (ln ^ 0xFFFF).to_bytes(2,\
+      \ \"big\")\n    return ACCESS_CODE_BYTES + whiten(hdr + body)\n\n\ndef frame_bits(payload):\n\
+      \    \"\"\"Convenience: frame as an unpacked 0/1 bit array (MSB-first).\"\"\"\
+      \n    return np.unpackbits(np.frombuffer(build_frame(payload), dtype=np.uint8))\n\
+      \n\n# --------------------------------------------------------------------------\n\
+      # receive side\n# --------------------------------------------------------------------------\n\
+      \nclass FrameAssembler:\n    \"\"\"Turns a tagged bit stream into validated\
+      \ payloads.\n\n    Feed it with add_bits(abs_index, bits) and add_tags(absolute_offsets),\n\
+      \    where the offsets come from a correlate_access_code_tag_bb tag.  Complete,\n\
+      \    CRC-good frames are handed to the `on_frame(payload_bytes)` callback.\n\
+      \n    Everything is vectorised (np.packbits over slices); there is no per-bit\n\
+      \    Python loop, so it comfortably keeps up with a 1 Mbit/s bit stream.\n \
+      \   \"\"\"\n\n    MAX_PENDING_TAGS = 64\n\n    def __init__(self, on_frame,\
+      \ max_body=MAX_BODY):\n        self.on_frame = on_frame\n        self.max_body\
+      \ = max_body\n        self._buf = np.zeros(0, dtype=np.uint8)\n        self._buf_start\
+      \ = 0          # absolute bit index of _buf[0]\n        self._next_abs = 0 \
+      \          # absolute index of the next expected bit\n        self._pending\
+      \ = deque()      # absolute tag offsets, ascending\n        self._cur = None\
+      \             # (abs_header_start, body_len)\n        # counters\n        self.n_tags\
+      \ = 0\n        self.n_bad_header = 0\n        self.n_bad_crc = 0\n        self.n_frames\
+      \ = 0\n        self.n_payload_bytes = 0\n\n    # -- input ------------------------------------------------------------\n\
+      \    def add_tags(self, offsets):\n        for off in offsets:\n           \
+      \ self._pending.append(int(off))\n            self.n_tags += 1\n        while\
+      \ len(self._pending) > self.MAX_PENDING_TAGS:\n            self._pending.popleft()\n\
+      \n    def add_bits(self, abs_index, bits):\n        if abs_index != self._next_abs\
+      \ and self._next_abs != 0:\n            # stream discontinuity (flowgraph restart):\
+      \ resynchronise\n            self._reset_buffer(abs_index)\n        elif self._next_abs\
+      \ == 0 and len(self._buf) == 0:\n            self._buf_start = abs_index\n \
+      \       self._buf = np.concatenate((self._buf, np.asarray(bits, dtype=np.uint8)))\n\
+      \        self._next_abs = abs_index + len(bits)\n\n    def _reset_buffer(self,\
+      \ abs_index):\n        self._buf = np.zeros(0, dtype=np.uint8)\n        self._buf_start\
+      \ = abs_index\n        self._pending.clear()\n        self._cur = None\n\n \
+      \   # -- processing -------------------------------------------------------\n\
+      \    def process(self):\n        end_abs = self._buf_start + len(self._buf)\n\
+      \        while True:\n            if self._cur is None:\n                if\
+      \ not self._pending:\n                    break\n                tag = self._pending[0]\n\
+      \                # need HDR_BITS from the latest candidate before we can decide\n\
+      \                if tag + max(PROBE_OFFSETS) + HDR_BITS > end_abs:\n       \
+      \             break\n                self._pending.popleft()\n             \
+      \   cand = self._try_header(tag, end_abs)\n                if cand is None:\n\
+      \                    self.n_bad_header += 1\n                    continue\n\
+      \                self._cur = cand\n            start, body_len = self._cur\n\
+      \            total_bits = HDR_BITS + body_len * 8\n            if start + total_bits\
+      \ > end_abs:\n                break\n            self._emit(start, body_len,\
+      \ total_bits)\n            self._cur = None\n            frame_end = start +\
+      \ total_bits\n            while self._pending and self._pending[0] < frame_end:\n\
+      \                self._pending.popleft()\n        self._trim()\n\n    def _try_header(self,\
+      \ tag, end_abs):\n        for off in PROBE_OFFSETS:\n            start = tag\
+      \ + off\n            if start < self._buf_start or start + HDR_BITS > end_abs:\n\
+      \                continue\n            i = start - self._buf_start\n       \
+      \     hdr = whiten(np.packbits(self._buf[i:i + HDR_BITS]).tobytes())\n     \
+      \       ln = (hdr[0] << 8) | hdr[1]\n            comp = (hdr[2] << 8) | hdr[3]\n\
+      \            if (ln ^ 0xFFFF) == comp and MIN_BODY <= ln <= self.max_body:\n\
+      \                return (start, ln)\n        return None\n\n    def _emit(self,\
+      \ start, body_len, total_bits):\n        i = start - self._buf_start\n     \
+      \   raw = np.packbits(self._buf[i:i + total_bits]).tobytes()\n        frame\
+      \ = whiten(raw)\n        body = frame[HDR_BYTES:]\n        payload, crc = body[:-CRC_BYTES],\
+      \ body[-CRC_BYTES:]\n        if zlib.crc32(payload) & 0xFFFFFFFF == int.from_bytes(crc,\
+      \ \"big\"):\n            self.n_frames += 1\n            self.n_payload_bytes\
+      \ += len(payload)\n            self.on_frame(payload)\n        else:\n     \
+      \       self.n_bad_crc += 1\n\n    def _trim(self):\n        end_abs = self._buf_start\
+      \ + len(self._buf)\n        if self._cur is not None:\n            keep_from\
+      \ = self._cur[0]\n        elif self._pending:\n            keep_from = self._pending[0]\
+      \ + min(PROBE_OFFSETS)\n        else:\n            # keep a small tail so a\
+      \ tag landing on the chunk boundary can\n            # still be probed backwards\n\
+      \            keep_from = end_abs - 8\n        keep_from = max(self._buf_start,\
+      \ min(keep_from, end_abs))\n        drop = keep_from - self._buf_start\n   \
+      \     if drop > 0:\n            self._buf = self._buf[drop:]\n            self._buf_start\
+      \ = keep_from\n\n    # -- reporting --------------------------------------------------------\n\
+      \    def stats(self):\n        return {\n            \"tags\": self.n_tags,\n\
+      \            \"frames\": self.n_frames,\n            \"bad_header\": self.n_bad_header,\n\
+      \            \"bad_crc\": self.n_bad_crc,\n            \"payload_bytes\": self.n_payload_bytes,\n\
+      \        }\n# ---------- end of inlined qpsk_framing.py --------\n\n\nclass\
+      \ blk(gr.sync_block):\n    \"\"\"QPSK chat frame sink: tagged bits in, one PDU\
+      \ out per good frame.\"\"\"\n\n    def __init__(self, tag_key='pkt_start'):\n\
+      \        gr.sync_block.__init__(self, name='frame_sink', in_sig=[np.uint8],\n\
+      \                               out_sig=None)\n        self.tag_key = tag_key\n\
+      \        self._tag = pmt.string_to_symbol(tag_key)\n        self.asm = FrameAssembler(self._deliver)\n\
+      \        self.message_port_register_out(pmt.intern('rx'))\n\n    def _deliver(self,\
+      \ payload):\n        vec = pmt.init_u8vector(len(payload), list(payload))\n\
+      \        self.message_port_pub(pmt.intern('rx'), pmt.cons(pmt.PMT_NIL, vec))\n\
+      \n    def work(self, input_items, output_items):\n        in0 = input_items[0]\n\
+      \        n = len(in0)\n        tags = self.get_tags_in_window(0, 0, n, self._tag)\n\
+      \        if tags:\n            self.asm.add_tags([t.offset for t in tags])\n\
+      \        self.asm.add_bits(self.nitems_read(0), in0)\n        self.asm.process()\n\
+      \        return n\n"
+    affinity: ''
+    alias: ''
+    comment: header + CRC32 check,\none PDU per good frame
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag_key: '''pkt_start'''
+  states:
+    _io_cache: '(''frame_sink'', ''blk'', [(''tag_key'', "''pkt_start''")], [(''0'',
+      ''byte'', 1)], [(''rx'', ''message'', 1)], ''QPSK chat frame sink: tagged bits
+      in, one PDU out per good frame.'', [''tag_key''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2384, 816.0]
+    rotation: 0
+    state: enabled
+- name: frame_source
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"QPSK chat -- frame source (GRC embedded block).\n\nFrames\
+      \ every PDU arriving on 'send' and emits it as bytes; transmits PN\nfiller while\
+      \ idle so the peer's timing/carrier loops never lose lock.\nRequires qpsk_framing.py\
+      \ in the same directory as this flowgraph.\n\"\"\"\nimport os\nimport sys\n\
+      import threading\nfrom collections import deque\n\nimport numpy as np\nimport\
+      \ pmt\nfrom gnuradio import gr\n\n# ---------- inlined from qpsk_framing.py\
+      \ ----------\nimport zlib\nfrom collections import deque\n\nimport numpy as\
+      \ np\n\n# --------------------------------------------------------------------------\n\
+      # constants\n# --------------------------------------------------------------------------\n\
+      \n# gnuradio.digital.packet_utils.default_access_code (0xACDDA4E2F28C20FC)\n\
+      ACCESS_CODE = \"1010110011011101101001001110001011110010100011000010000011111100\"\
+      \nACCESS_CODE_BYTES = bytes(\n    int(ACCESS_CODE[i:i + 8], 2) for i in range(0,\
+      \ len(ACCESS_CODE), 8)\n)\n\nHDR_BYTES = 4          # len(2) + ~len(2)\nHDR_BITS\
+      \ = HDR_BYTES * 8\nCRC_BYTES = 4\nMAX_PAYLOAD = 1024     # link-layer payload\
+      \ ceiling; keep in sync with qpsk_chat\nMAX_BODY = MAX_PAYLOAD + CRC_BYTES\n\
+      MIN_BODY = CRC_BYTES + 1\n\n# Candidate bit offsets tried at a correlator tag\
+      \ before giving up.  Different\n# GNU Radio releases place the tag on the last\
+      \ access-code bit or on the first\n# bit after it; probing removes the ambiguity\
+      \ instead of hard-coding it.\nPROBE_OFFSETS = (0, 1, -1)\n\n\n# --------------------------------------------------------------------------\n\
+      # PN9 whitening\n# --------------------------------------------------------------------------\n\
+      \ndef _make_pn(nbytes):\n    \"\"\"PN9 (x^9 + x^5 + 1) byte sequence, MSB-first,\
+      \ seed all-ones.\"\"\"\n    state = 0x1FF\n    out = bytearray()\n    for _\
+      \ in range(nbytes):\n        b = 0\n        for _ in range(8):\n           \
+      \ bit = ((state >> 8) ^ (state >> 4)) & 1\n            state = ((state << 1)\
+      \ | bit) & 0x1FF\n            b = (b << 1) | bit\n        out.append(b)\n  \
+      \  return bytes(out)\n\n\n_PN_LEN = 511\nPN = _make_pn(_PN_LEN)\n_PN_ARR = np.frombuffer(PN,\
+      \ dtype=np.uint8)\n\n\ndef pn_bytes(n, phase=0):\n    \"\"\"n bytes of the PN\
+      \ sequence starting at `phase` (cyclic).\"\"\"\n    idx = (np.arange(n, dtype=np.int64)\
+      \ + phase) % _PN_LEN\n    return _PN_ARR[idx]\n\n\ndef whiten(data, phase=0):\n\
+      \    \"\"\"XOR `data` (bytes) with the PN sequence.  Self-inverse.\"\"\"\n \
+      \   a = np.frombuffer(data, dtype=np.uint8)\n    return (a ^ pn_bytes(len(a),\
+      \ phase)).tobytes()\n\n\n# --------------------------------------------------------------------------\n\
+      # transmit side\n# --------------------------------------------------------------------------\n\
+      \ndef build_frame(payload):\n    \"\"\"bytes -> packed frame bytes ready to\
+      \ hand to the modulator.\"\"\"\n    if not payload:\n        raise ValueError(\"\
+      empty payload\")\n    if len(payload) > MAX_PAYLOAD:\n        raise ValueError(\"\
+      payload %d > MAX_PAYLOAD %d\" % (len(payload), MAX_PAYLOAD))\n    crc = zlib.crc32(payload)\
+      \ & 0xFFFFFFFF\n    body = bytes(payload) + crc.to_bytes(4, \"big\")\n    ln\
+      \ = len(body)\n    hdr = ln.to_bytes(2, \"big\") + (ln ^ 0xFFFF).to_bytes(2,\
+      \ \"big\")\n    return ACCESS_CODE_BYTES + whiten(hdr + body)\n\n\ndef frame_bits(payload):\n\
+      \    \"\"\"Convenience: frame as an unpacked 0/1 bit array (MSB-first).\"\"\"\
+      \n    return np.unpackbits(np.frombuffer(build_frame(payload), dtype=np.uint8))\n\
+      \n\n# --------------------------------------------------------------------------\n\
+      # receive side\n# --------------------------------------------------------------------------\n\
+      \nclass FrameAssembler:\n    \"\"\"Turns a tagged bit stream into validated\
+      \ payloads.\n\n    Feed it with add_bits(abs_index, bits) and add_tags(absolute_offsets),\n\
+      \    where the offsets come from a correlate_access_code_tag_bb tag.  Complete,\n\
+      \    CRC-good frames are handed to the `on_frame(payload_bytes)` callback.\n\
+      \n    Everything is vectorised (np.packbits over slices); there is no per-bit\n\
+      \    Python loop, so it comfortably keeps up with a 1 Mbit/s bit stream.\n \
+      \   \"\"\"\n\n    MAX_PENDING_TAGS = 64\n\n    def __init__(self, on_frame,\
+      \ max_body=MAX_BODY):\n        self.on_frame = on_frame\n        self.max_body\
+      \ = max_body\n        self._buf = np.zeros(0, dtype=np.uint8)\n        self._buf_start\
+      \ = 0          # absolute bit index of _buf[0]\n        self._next_abs = 0 \
+      \          # absolute index of the next expected bit\n        self._pending\
+      \ = deque()      # absolute tag offsets, ascending\n        self._cur = None\
+      \             # (abs_header_start, body_len)\n        # counters\n        self.n_tags\
+      \ = 0\n        self.n_bad_header = 0\n        self.n_bad_crc = 0\n        self.n_frames\
+      \ = 0\n        self.n_payload_bytes = 0\n\n    # -- input ------------------------------------------------------------\n\
+      \    def add_tags(self, offsets):\n        for off in offsets:\n           \
+      \ self._pending.append(int(off))\n            self.n_tags += 1\n        while\
+      \ len(self._pending) > self.MAX_PENDING_TAGS:\n            self._pending.popleft()\n\
+      \n    def add_bits(self, abs_index, bits):\n        if abs_index != self._next_abs\
+      \ and self._next_abs != 0:\n            # stream discontinuity (flowgraph restart):\
+      \ resynchronise\n            self._reset_buffer(abs_index)\n        elif self._next_abs\
+      \ == 0 and len(self._buf) == 0:\n            self._buf_start = abs_index\n \
+      \       self._buf = np.concatenate((self._buf, np.asarray(bits, dtype=np.uint8)))\n\
+      \        self._next_abs = abs_index + len(bits)\n\n    def _reset_buffer(self,\
+      \ abs_index):\n        self._buf = np.zeros(0, dtype=np.uint8)\n        self._buf_start\
+      \ = abs_index\n        self._pending.clear()\n        self._cur = None\n\n \
+      \   # -- processing -------------------------------------------------------\n\
+      \    def process(self):\n        end_abs = self._buf_start + len(self._buf)\n\
+      \        while True:\n            if self._cur is None:\n                if\
+      \ not self._pending:\n                    break\n                tag = self._pending[0]\n\
+      \                # need HDR_BITS from the latest candidate before we can decide\n\
+      \                if tag + max(PROBE_OFFSETS) + HDR_BITS > end_abs:\n       \
+      \             break\n                self._pending.popleft()\n             \
+      \   cand = self._try_header(tag, end_abs)\n                if cand is None:\n\
+      \                    self.n_bad_header += 1\n                    continue\n\
+      \                self._cur = cand\n            start, body_len = self._cur\n\
+      \            total_bits = HDR_BITS + body_len * 8\n            if start + total_bits\
+      \ > end_abs:\n                break\n            self._emit(start, body_len,\
+      \ total_bits)\n            self._cur = None\n            frame_end = start +\
+      \ total_bits\n            while self._pending and self._pending[0] < frame_end:\n\
+      \                self._pending.popleft()\n        self._trim()\n\n    def _try_header(self,\
+      \ tag, end_abs):\n        for off in PROBE_OFFSETS:\n            start = tag\
+      \ + off\n            if start < self._buf_start or start + HDR_BITS > end_abs:\n\
+      \                continue\n            i = start - self._buf_start\n       \
+      \     hdr = whiten(np.packbits(self._buf[i:i + HDR_BITS]).tobytes())\n     \
+      \       ln = (hdr[0] << 8) | hdr[1]\n            comp = (hdr[2] << 8) | hdr[3]\n\
+      \            if (ln ^ 0xFFFF) == comp and MIN_BODY <= ln <= self.max_body:\n\
+      \                return (start, ln)\n        return None\n\n    def _emit(self,\
+      \ start, body_len, total_bits):\n        i = start - self._buf_start\n     \
+      \   raw = np.packbits(self._buf[i:i + total_bits]).tobytes()\n        frame\
+      \ = whiten(raw)\n        body = frame[HDR_BYTES:]\n        payload, crc = body[:-CRC_BYTES],\
+      \ body[-CRC_BYTES:]\n        if zlib.crc32(payload) & 0xFFFFFFFF == int.from_bytes(crc,\
+      \ \"big\"):\n            self.n_frames += 1\n            self.n_payload_bytes\
+      \ += len(payload)\n            self.on_frame(payload)\n        else:\n     \
+      \       self.n_bad_crc += 1\n\n    def _trim(self):\n        end_abs = self._buf_start\
+      \ + len(self._buf)\n        if self._cur is not None:\n            keep_from\
+      \ = self._cur[0]\n        elif self._pending:\n            keep_from = self._pending[0]\
+      \ + min(PROBE_OFFSETS)\n        else:\n            # keep a small tail so a\
+      \ tag landing on the chunk boundary can\n            # still be probed backwards\n\
+      \            keep_from = end_abs - 8\n        keep_from = max(self._buf_start,\
+      \ min(keep_from, end_abs))\n        drop = keep_from - self._buf_start\n   \
+      \     if drop > 0:\n            self._buf = self._buf[drop:]\n            self._buf_start\
+      \ = keep_from\n\n    # -- reporting --------------------------------------------------------\n\
+      \    def stats(self):\n        return {\n            \"tags\": self.n_tags,\n\
+      \            \"frames\": self.n_frames,\n            \"bad_header\": self.n_bad_header,\n\
+      \            \"bad_crc\": self.n_bad_crc,\n            \"payload_bytes\": self.n_payload_bytes,\n\
+      \        }\n# ---------- end of inlined qpsk_framing.py --------\n\n\nclass\
+      \ blk(gr.sync_block):\n    \"\"\"QPSK chat frame source: PDU in ('send'), framed\
+      \ bytes out.\"\"\"\n\n    def __init__(self, idle_chunk=1024):\n        gr.sync_block.__init__(self,\
+      \ name='frame_source', in_sig=None,\n                               out_sig=[np.uint8])\n\
+      \        self.idle_chunk = int(idle_chunk)\n        self._lock = threading.Lock()\n\
+      \        self._q = deque()\n        self._cur = None\n        self._pos = 0\n\
+      \        self._filler = pn_bytes(4096)\n        self._fpos = 0\n        self.message_port_register_in(pmt.intern('send'))\n\
+      \        self.set_msg_handler(pmt.intern('send'), self._on_msg)\n\n    def _on_msg(self,\
+      \ msg):\n        if pmt.is_pair(msg):\n            msg = pmt.cdr(msg)\n    \
+      \    if pmt.is_u8vector(msg):\n            payload = bytes(pmt.u8vector_elements(msg))\n\
+      \        elif pmt.is_symbol(msg):\n            payload = pmt.symbol_to_string(msg).encode('utf-8')\n\
+      \        else:\n            return\n        frame = np.frombuffer(build_frame(payload),\
+      \ dtype=np.uint8)\n        with self._lock:\n            self._q.append(frame)\n\
+      \n    def _idle(self, n):\n        out = np.empty(n, dtype=np.uint8)\n     \
+      \   got = 0\n        while got < n:\n            take = min(n - got, len(self._filler)\
+      \ - self._fpos)\n            out[got:got + take] = self._filler[self._fpos:self._fpos\
+      \ + take]\n            got += take\n            self._fpos = (self._fpos + take)\
+      \ % len(self._filler)\n        return out\n\n    def work(self, input_items,\
+      \ output_items):\n        out = output_items[0]\n        n = len(out)\n    \
+      \    produced = 0\n        while produced < n:\n            if self._cur is\
+      \ None or self._pos >= len(self._cur):\n                with self._lock:\n \
+      \                   self._cur = self._q.popleft() if self._q else None\n   \
+      \             self._pos = 0\n                if self._cur is None:\n       \
+      \             take = min(n - produced, self.idle_chunk)\n                  \
+      \  out[produced:produced + take] = self._idle(take)\n                    produced\
+      \ += take\n                    break\n            take = min(n - produced, len(self._cur)\
+      \ - self._pos)\n            out[produced:produced + take] = self._cur[self._pos:self._pos\
+      \ + take]\n            self._pos += take\n            produced += take\n   \
+      \     return produced\n"
+    affinity: ''
+    alias: ''
+    comment: PDU in -> framed bytes out,\nPN filler while idle
+    idle_chunk: '1024'
+    maxoutbuf: '4096'
+    minoutbuf: '0'
+  states:
+    _io_cache: '(''frame_source'', ''blk'', [(''idle_chunk'', ''1024'')], [(''send'',
+      ''message'', 1)], [(''0'', ''byte'', 1)], "QPSK chat frame source: PDU in (''send''),
+      framed bytes out.", [''idle_chunk''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [352, 648.0]
+    rotation: 0
+    state: enabled
+- name: iio_pluto_sink_0
+  id: iio_pluto_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    attenuation1: tx_atten
+    bandwidth: int(bandwidth)
+    buffer_size: buffer_size
+    comment: ''
+    cyclic: 'False'
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: int(tx_freq)
+    fstop: '0'
+    len_tag_key: ''
+    samplerate: int(samp_rate)
+    type: fc32
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1064, 492.0]
+    rotation: 0
+    state: enabled
+- name: iio_pluto_source_0
+  id: iio_pluto_source
+  parameters:
+    affinity: ''
+    alias: ''
+    bandwidth: int(bandwidth)
+    bbdc: 'True'
+    buffer_size: buffer_size
+    comment: ''
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: int(rx_freq)
+    fstop: '0'
+    gain1: '''slow_attack'''
+    len_tag_key: ''
+    manual_gain1: '40'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quadrature: 'True'
+    rfdc: 'True'
+    samplerate: int(samp_rate)
+    type: fc32
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [144, 892.0]
+    rotation: 0
+    state: enabled
+- name: import_0
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: from gnuradio.filter import firdes
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [864, 192.0]
+    rotation: 0
+    state: enabled
+- name: note_0
+  id: note
+  parameters:
+    alias: ''
+    comment: Bench diagnostic twin of qpsk_chat.py. Run one node with -r a, the other
+      with -r b. qpsk_framing.py must be in this directory.
+    note: read me
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [664, 32.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_const_sink_x_0
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: should show four tight clusters when locked
+    grid: 'True'
+    gui_hint: 2,0,1,2
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'False'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '"RX constellation"'
+    nconnections: '1'
+    size: '1024'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1424, 952.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_x_0
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '0.2'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: tx_freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: 1,0,1,1
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"TX spectrum"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1088, 680.0]
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_x_1
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '0.2'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: rx_freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: 1,1,1,1
+    label: Relative Gain
+    label1: ''
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'False'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"RX spectrum"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [656, 1112.0]
+    rotation: 0
+    state: enabled
+- name: role
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 'a: TX 915 / RX 917    b: TX 917 / RX 915'
+    hide: none
+    label: FDD role (a or b)
+    short_id: r
+    type: str
+    value: a
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [488, 16.0]
+    rotation: 0
+    state: enabled
+- name: uri
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Pluto URI
+    short_id: u
+    type: str
+    value: ip:192.168.1.10
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [208, 24.0]
+    rotation: 0
+    state: enabled
+
+connections:
+- [analog_agc2_xx_0, '0', digital_pfb_clock_sync_xxx_0, '0']
+- [analog_agc2_xx_0, '0', qtgui_freq_sink_x_1, '0']
+- [blocks_message_strobe_0, strobe, frame_source, send]
+- [blocks_multiply_const_vxx_0, '0', iio_pluto_sink_0, '0']
+- [blocks_multiply_const_vxx_0, '0', qtgui_freq_sink_x_0, '0']
+- [blocks_unpack_k_bits_bb_0, '0', digital_correlate_access_code_tag_xx_0, '0']
+- [digital_constellation_decoder_cb_0, '0', digital_diff_decoder_bb_0, '0']
+- [digital_constellation_modulator_0, '0', blocks_multiply_const_vxx_0, '0']
+- [digital_correlate_access_code_tag_xx_0, '0', frame_sink, '0']
+- [digital_costas_loop_cc_0, '0', digital_constellation_decoder_cb_0, '0']
+- [digital_costas_loop_cc_0, '0', qtgui_const_sink_x_0, '0']
+- [digital_diff_decoder_bb_0, '0', blocks_unpack_k_bits_bb_0, '0']
+- [digital_linear_equalizer_0, '0', digital_costas_loop_cc_0, '0']
+- [digital_pfb_clock_sync_xxx_0, '0', digital_linear_equalizer_0, '0']
+- [frame_sink, rx, blocks_message_debug_0, print]
+- [frame_source, '0', digital_constellation_modulator_0, '0']
+- [iio_pluto_source_0, '0', analog_agc2_xx_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0
