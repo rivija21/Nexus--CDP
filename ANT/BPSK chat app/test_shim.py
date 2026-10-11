@@ -98,11 +98,8 @@ def main():
     import bpsk_app as A
     import bpsk_link as L
 
-    import shutil
-    import tempfile
-    scratch = tempfile.mkdtemp(prefix='bpsk_shim_')
     port = 8231
-    blk = shim.blk(my_addr=1, peer_addr=2, rx_dir=scratch,
+    blk = shim.blk(my_addr=1, peer_addr=2, rx_dir=os.path.join(HERE, 'chat_files'),
                    nickname='Bench A', http_port=port, open_ui=False,
                    tx_freq=905.2e6, rx_freq=910.2e6)
     check('protocol modules load next to the flowgraph', blk.app is not None,
@@ -169,7 +166,6 @@ def main():
         freed = True
     check('stop() releases the port so the flowgraph can restart', freed)
 
-    shutil.rmtree(scratch, ignore_errors=True)
     print('\n%s' % ('all shim checks passed' if not FAILURES
                     else 'FAILED: ' + ', '.join(FAILURES)))
     return 1 if FAILURES else 0
