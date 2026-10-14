@@ -1,0 +1,3660 @@
+options:
+  parameters:
+    author: Rivija Pesara (framing from Barry Duggan BPSK example)
+    catch_exceptions: 'False'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: 'BPSK network node: 4-channel FDMA mesh (6 MS/s, one-sided plan),
+      self-assigned channels and addresses, closed-loop gain staging, Selective Repeat
+      ARQ per peer, end-to-end encryption per pair, browser chat (r6.1-mesh)'
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: bpsk_duplex_pluto
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: BPSK Mesh Node (Pluto, 4-channel FDMA, r6.1)
+    window_size: (1000,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: ack_timeout
+  id: variable
+  parameters:
+    comment: seconds before retransmit
+    value: '0.5'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 260]
+    rotation: 0
+    state: enabled
+- name: ch_rate
+  id: variable
+  parameters:
+    comment: each channel after its channel filter
+    value: sps*sym_rate
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 260]
+    rotation: 0
+    state: enabled
+- name: ch_taps
+  id: variable
+  parameters:
+    comment: 'pass +-175 kHz flat, stop from 425 kHz (65 dB): adjacent channels and
+      the own transmitter on its channel'
+    value: firdes.low_pass_2(1.0, radio_rate, 0.5*ch_spacing, 0.4167*ch_spacing, 65)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1592, 260]
+    rotation: 0
+    state: enabled
+- name: constel
+  id: variable_constellation
+  parameters:
+    comment: ''
+    const_points: '[-1-1j, -1+1j, 1+1j, 1-1j]'
+    dims: '1'
+    normalization: digital.constellation.AMPLITUDE_NORMALIZATION
+    npwr: '1.0'
+    precision: '8'
+    rot_sym: '4'
+    soft_dec_lut: None
+    sym_map: '[0, 1, 3, 2]'
+    type: bpsk
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 452]
+    rotation: 0
+    state: enabled
+- name: decim
+  id: variable
+  parameters:
+    comment: channel filter decimation
+    value: tx_interp//sps
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1416, 260]
+    rotation: 0
+    state: enabled
+- name: frag_size
+  id: variable
+  parameters:
+    comment: bytes of file data per frame
+    value: '256'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 260]
+    rotation: 0
+    state: enabled
+- name: max_retries
+  id: variable
+  parameters:
+    comment: ''
+    value: '5'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 260]
+    rotation: 0
+    state: enabled
+- name: queue_ahead
+  id: variable
+  parameters:
+    comment: seconds of airtime queued ahead of the radio
+    value: '0.03'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 260]
+    rotation: 0
+    state: enabled
+- name: rrc_taps
+  id: variable
+  parameters:
+    comment: matched filter
+    value: firdes.root_raised_cosine(1.0, ch_rate, sym_rate, 0.35, 11*sps)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1768, 260]
+    rotation: 0
+    state: enabled
+- name: sps
+  id: variable
+  parameters:
+    comment: samples per symbol in each receive chain
+    value: '4'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1064, 260]
+    rotation: 0
+    state: enabled
+- name: sym_rate
+  id: variable
+  parameters:
+    comment: 'symbols per second on every channel: 250k at 6 MS/s'
+    value: radio_rate/tx_interp
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 260]
+    rotation: 0
+    state: enabled
+- name: tx_interp
+  id: variable
+  parameters:
+    comment: radio samples per symbol (6 MS/s / 250 ksym/s)
+    value: '24'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 260]
+    rotation: 0
+    state: enabled
+- name: tx_scale
+  id: variable
+  parameters:
+    comment: 'digital back-off: symbol peaks near -6 dBFS'
+    value: '0.35'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 356]
+    rotation: 0
+    state: enabled
+- name: tx_taps
+  id: variable
+  parameters:
+    comment: RRC interpolation straight to the radio rate, 16-symbol span
+    value: '[tx_scale*t for t in firdes.root_raised_cosine(tx_interp, tx_interp, 1.0,
+      0.35, 16*tx_interp+1)]'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 356]
+    rotation: 0
+    state: enabled
+- name: adc_keep
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: raw ADC samples, 20 snapshots a second
+    m: '8192'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '300000'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [300, 1840]
+    rotation: 0
+    state: enabled
+- name: adc_pdu
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [680, 1840]
+    rotation: 0
+    state: enabled
+- name: adc_pkt
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '32768'
+    packet_len: '8192'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [480, 1840]
+    rotation: 0
+    state: enabled
+- name: afc_ch0
+  id: blocks_rotator_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: carrier offset correction (node AFC)
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    phase_inc: '0'
+    tag_inc_update: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 640]
+    rotation: 0
+    state: enabled
+- name: afc_ch1
+  id: blocks_rotator_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    phase_inc: '0'
+    tag_inc_update: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 940]
+    rotation: 0
+    state: enabled
+- name: afc_ch2
+  id: blocks_rotator_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    phase_inc: '0'
+    tag_inc_update: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 1240]
+    rotation: 0
+    state: enabled
+- name: afc_ch3
+  id: blocks_rotator_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    phase_inc: '0'
+    tag_inc_update: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [560, 1540]
+    rotation: 0
+    state: enabled
+- name: agc
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 1 = closed-loop RX gain / TX attenuation; 0 = fixed (/gain to move)
+    hide: none
+    label: Gain control (1/0)
+    short_id: ''
+    type: intx
+    value: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1064, 128]
+    rotation: 0
+    state: enabled
+- name: agc_ch0
+  id: analog_agc3_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    attack_rate: '1.0'
+    comment: 'normalises the channel (symbol sync and Costas loop gains assume unit
+      amplitude). Attack 1.0: a sample can never leave above 1.0, so a transmitter
+      switching on cannot spike the symbol sync (agc2 did - it wedged)'
+    decay_rate: 1e-4
+    gain: '1.0'
+    iir_update_decim: '1'
+    max_gain: 1e5
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    reference: '1.0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [660, 700]
+    rotation: 0
+    state: enabled
+- name: agc_ch1
+  id: analog_agc3_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    attack_rate: '1.0'
+    comment: ''
+    decay_rate: 1e-4
+    gain: '1.0'
+    iir_update_decim: '1'
+    max_gain: 1e5
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    reference: '1.0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [660, 1000]
+    rotation: 0
+    state: enabled
+- name: agc_ch2
+  id: analog_agc3_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    attack_rate: '1.0'
+    comment: ''
+    decay_rate: 1e-4
+    gain: '1.0'
+    iir_update_decim: '1'
+    max_gain: 1e5
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    reference: '1.0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [660, 1300]
+    rotation: 0
+    state: enabled
+- name: agc_ch3
+  id: analog_agc3_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    attack_rate: '1.0'
+    comment: ''
+    decay_rate: 1e-4
+    gain: '1.0'
+    iir_update_decim: '1'
+    max_gain: 1e5
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    reference: '1.0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [660, 1600]
+    rotation: 0
+    state: enabled
+- name: arq_window
+  id: parameter
+  parameters:
+    alias: ''
+    comment: Selective Repeat window, 1..64; 1 = stop-and-wait
+    hide: none
+    label: ARQ window (frames)
+    short_id: ''
+    type: intx
+    value: '32'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 16]
+    rotation: 0
+    state: enabled
+- name: bits_to_vec_ch0
+  id: blocks_stream_to_vector
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 33 ms of bits per Python call; 4 s buffered, so a slow deframer never
+      stalls the receiver
+    maxoutbuf: '0'
+    minoutbuf: '128'
+    num_items: '8192'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1860, 640]
+    rotation: 0
+    state: enabled
+- name: bits_to_vec_ch1
+  id: blocks_stream_to_vector
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '128'
+    num_items: '8192'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1860, 940]
+    rotation: 0
+    state: enabled
+- name: bits_to_vec_ch2
+  id: blocks_stream_to_vector
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '128'
+    num_items: '8192'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1860, 1240]
+    rotation: 0
+    state: enabled
+- name: bits_to_vec_ch3
+  id: blocks_stream_to_vector
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '128'
+    num_items: '8192'
+    type: byte
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1860, 1540]
+    rotation: 0
+    state: enabled
+- name: blocks_message_strobe_0
+  id: blocks_message_strobe
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: drives ARQ timers, beacons and the node's housekeeping
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    msg: pmt.intern("tick")
+    period: '10'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2420, 492]
+    rotation: 0
+    state: enabled
+- name: center_freq
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 'the same on every node: every channel sits above it'
+    hide: none
+    label: Centre frequency (Hz)
+    short_id: ''
+    type: eng_float
+    value: 910.2e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 16]
+    rotation: 0
+    state: enabled
+- name: ch_first
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 'r6.1 one-sided plan: channel k at ch_first + k*ch_spacing'
+    hide: none
+    label: Channel 0 offset (Hz)
+    short_id: ''
+    type: eng_float
+    value: 450e3
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 16]
+    rotation: 0
+    state: enabled
+- name: ch_spacing
+  id: parameter
+  parameters:
+    alias: ''
+    comment: must divide radio_rate
+    hide: none
+    label: Channel spacing (Hz)
+    short_id: ''
+    type: eng_float
+    value: 600e3
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 16]
+    rotation: 0
+    state: enabled
+- name: chan_filter_ch0
+  id: freq_xlating_fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    center_freq: ch_first+0*ch_spacing
+    comment: ''
+    decim: decim
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: radio_rate
+    taps: ch_taps
+    type: ccf
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [300, 640]
+    rotation: 0
+    state: enabled
+- name: chan_filter_ch1
+  id: freq_xlating_fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    center_freq: ch_first+1*ch_spacing
+    comment: ''
+    decim: decim
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: radio_rate
+    taps: ch_taps
+    type: ccf
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [300, 940]
+    rotation: 0
+    state: enabled
+- name: chan_filter_ch2
+  id: freq_xlating_fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    center_freq: ch_first+2*ch_spacing
+    comment: ''
+    decim: decim
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: radio_rate
+    taps: ch_taps
+    type: ccf
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [300, 1240]
+    rotation: 0
+    state: enabled
+- name: chan_filter_ch3
+  id: freq_xlating_fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    center_freq: ch_first+3*ch_spacing
+    comment: ''
+    decim: decim
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: radio_rate
+    taps: ch_taps
+    type: ccf
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [300, 1540]
+    rotation: 0
+    state: enabled
+- name: channel
+  id: parameter
+  parameters:
+    alias: ''
+    comment: -1 = automatic, 0..3 fixed
+    hide: none
+    label: TX channel
+    short_id: ''
+    type: intx
+    value: '-1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 16]
+    rotation: 0
+    state: enabled
+- name: const_keep_ch0
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '32'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '512'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1460, 860]
+    rotation: 0
+    state: enabled
+- name: const_keep_ch1
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '32'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '512'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1460, 1160]
+    rotation: 0
+    state: enabled
+- name: const_keep_ch2
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '32'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '512'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1460, 1460]
+    rotation: 0
+    state: enabled
+- name: const_keep_ch3
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '32'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '512'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1460, 1760]
+    rotation: 0
+    state: enabled
+- name: const_sink_ch0
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    grid: 'True'
+    gui_hint: '[3, 0, 1, 1]'
+    label1: '"ch 0"'
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '"Channel 0"'
+    nconnections: '1'
+    size: '512'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.20'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 860]
+    rotation: 0
+    state: enabled
+- name: const_sink_ch1
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    grid: 'True'
+    gui_hint: '[3, 1, 1, 1]'
+    label1: '"ch 1"'
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '"Channel 1"'
+    nconnections: '1'
+    size: '512'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.20'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 1160]
+    rotation: 0
+    state: enabled
+- name: const_sink_ch2
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    grid: 'True'
+    gui_hint: '[4, 0, 1, 1]'
+    label1: '"ch 2"'
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '"Channel 2"'
+    nconnections: '1'
+    size: '512'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.20'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 1460]
+    rotation: 0
+    state: enabled
+- name: const_sink_ch3
+  id: qtgui_const_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    grid: 'True'
+    gui_hint: '[4, 1, 1, 1]'
+    label1: '"ch 3"'
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '0'
+    marker10: '0'
+    marker2: '0'
+    marker3: '0'
+    marker4: '0'
+    marker5: '0'
+    marker6: '0'
+    marker7: '0'
+    marker8: '0'
+    marker9: '0'
+    name: '"Channel 3"'
+    nconnections: '1'
+    size: '512'
+    style1: '0'
+    style10: '0'
+    style2: '0'
+    style3: '0'
+    style4: '0'
+    style5: '0'
+    style6: '0'
+    style7: '0'
+    style8: '0'
+    style9: '0'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: complex
+    update_time: '0.20'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    xmax: '2'
+    xmin: '-2'
+    ymax: '2'
+    ymin: '-2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 1760]
+    rotation: 0
+    state: enabled
+- name: costas_ch0
+  id: digital_costas_loop_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    order: '2'
+    use_snr: 'False'
+    w: 3.14/100
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 640]
+    rotation: 0
+    state: enabled
+- name: costas_ch1
+  id: digital_costas_loop_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    order: '2'
+    use_snr: 'False'
+    w: 3.14/100
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 940]
+    rotation: 0
+    state: enabled
+- name: costas_ch2
+  id: digital_costas_loop_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    order: '2'
+    use_snr: 'False'
+    w: 3.14/100
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1240]
+    rotation: 0
+    state: enabled
+- name: costas_ch3
+  id: digital_costas_loop_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    order: '2'
+    use_snr: 'False'
+    w: 3.14/100
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1540]
+    rotation: 0
+    state: enabled
+- name: decoder_ch0
+  id: digital_constellation_decoder_cb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1460, 640]
+    rotation: 0
+    state: enabled
+- name: decoder_ch1
+  id: digital_constellation_decoder_cb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1460, 940]
+    rotation: 0
+    state: enabled
+- name: decoder_ch2
+  id: digital_constellation_decoder_cb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1460, 1240]
+    rotation: 0
+    state: enabled
+- name: decoder_ch3
+  id: digital_constellation_decoder_cb
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1460, 1540]
+    rotation: 0
+    state: enabled
+- name: deframer_ch0
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"BPSK deframer for one receive channel (r6.1, embedded block).\n\
+      \nInput: hard-decision bits (0/1, one per byte) from the differential decoder,\n\
+      grouped by a Stream to Vector block into vectors of `batch` bits.\nOutput, message\
+      \ port 'pdus': one PDU per link frame, metadata {'ch': k}; and\nonce a second\
+      \ a PDU with an empty payload and metadata {'ch': k, 'stats':\n{...}}, which\
+      \ the node block uses as this channel's liveness check.\n\nThe search is bpsk_phy.Deframer\
+      \ (next to the flowgraph). It replaces\ncorrelate_access_code_bb_ts -> repack_bits_bb\
+      \ -> tagged_stream_to_pdu, which\non GNU Radio 3.10.12 could wait for 65535\
+      \ bytes after one corrupted header\nand so stall the whole receiver ('repack_bits_bb\
+      \ is requesting more input\ndata than we can provide'). This block never waits\
+      \ for data it does not\nhave: it takes whatever whole vectors are there (Python\
+      \ is entered at most\n~60 times a second per channel instead of once per few\
+      \ symbols, and the\nscheduler never calls into Python just to ask - a basic_block's\
+      \ forecast()\nwould be a Python call on every scheduler pass), drops an implausible\n\
+      length at once, and keeps looking for access codes inside a frame it is\nstill\
+      \ collecting, so one bad header costs at most that one frame.\n\"\"\"\n\nimport\
+      \ os\nimport sys\nimport time\nimport traceback\n\nimport numpy as np\nimport\
+      \ pmt\nfrom gnuradio import gr\n\n\ndef _load(name):\n    \"\"\"Load a sibling\
+      \ module by path (GRC validates with exec() and no\n    __file__, from whatever\
+      \ directory it was started in).\"\"\"\n    import importlib.util\n    if name\
+      \ in sys.modules:\n        return sys.modules[name]\n    roots = []\n    try:\n\
+      \        roots.append(os.path.dirname(os.path.abspath(__file__)))\n    except\
+      \ NameError:\n        pass\n    roots.append(os.getcwd())\n    roots.extend([p\
+      \ for p in sys.path if p])\n    for root in roots:\n        path = os.path.join(root,\
+      \ name + '.py')\n        if os.path.isfile(path):\n            spec = importlib.util.spec_from_file_location(name,\
+      \ path)\n            mod = importlib.util.module_from_spec(spec)\n         \
+      \   sys.modules[name] = mod\n            try:\n                spec.loader.exec_module(mod)\n\
+      \            except Exception:\n                sys.modules.pop(name, None)\n\
+      \                raise\n            return mod\n    return None\n\n\ntry:\n\
+      \    _phy = _load('bpsk_phy')\n    _err = '' if _phy is not None else 'bpsk_phy.py\
+      \ not found'\nexcept Exception as _e:          # noqa: BLE001 - reported at\
+      \ run time\n    _phy, _err = None, repr(_e)\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"BPSK deframer: bits in, link frames out as PDUs.\"\"\"\n\n    def\
+      \ __init__(self, channel=0, max_len=600, batch=8192):\n        gr.sync_block.__init__(self,\
+      \ name='BPSK Deframer',\n                               in_sig=[(np.uint8, int(batch))],\
+      \ out_sig=None)\n        self.channel = int(channel)\n        self.batch = int(batch)\n\
+      \        self._port = pmt.intern('pdus')\n        self.message_port_register_out(self._port)\n\
+      \        self._core = (_phy.Deframer(max_len=int(max_len))\n               \
+      \       if _phy is not None else None)\n        self._ch = pmt.from_long(self.channel)\n\
+      \        self._k_ch = pmt.intern('ch')\n        self._k_stats = pmt.intern('stats')\n\
+      \        self._empty = pmt.init_u8vector(0, [])\n        self._next = 0.0\n\
+      \        self._faults = 0\n\n    def work(self, input_items, output_items):\n\
+      \        x = input_items[0]\n        n = len(x)\n        frames = ()\n     \
+      \   if n and self._core is not None:\n            try:\n                frames\
+      \ = self._core.feed(x.reshape(-1))\n            except Exception:          \
+      \           # noqa: BLE001\n                self._faults += 1\n            \
+      \    if self._faults <= 3:\n                    traceback.print_exc()\n    \
+      \    for f in frames:\n            meta = pmt.dict_add(pmt.make_dict(), self._k_ch,\
+      \ self._ch)\n            self.message_port_pub(self._port, pmt.cons(\n     \
+      \           meta, pmt.init_u8vector(len(f), list(f))))\n        now = time.time()\n\
+      \        if now >= self._next:\n            self._next = now + 1.0\n       \
+      \     st = dict(self._core.stats) if self._core is not None else {}\n      \
+      \      st['faults'] = self._faults\n            if self._core is None:\n   \
+      \             st['error'] = _err\n            meta = pmt.dict_add(pmt.make_dict(),\
+      \ self._k_ch, self._ch)\n            meta = pmt.dict_add(meta, self._k_stats,\
+      \ pmt.to_pmt(st))\n            self.message_port_pub(self._port, pmt.cons(meta,\
+      \ self._empty))\n        return n\n"
+    affinity: ''
+    alias: ''
+    batch: '8192'
+    channel: '0'
+    comment: ''
+    max_len: '600'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: '(''BPSK Deframer'', ''blk'', [(''channel'', ''0''), (''max_len'',
+      ''600''), (''batch'', ''8192'')], [(''0'', ''byte'', 8192)], [(''pdus'', ''message'',
+      1)], ''BPSK deframer: bits in, link frames out as PDUs.'', [''batch'', ''channel''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2060, 640]
+    rotation: 0
+    state: enabled
+- name: deframer_ch1
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"BPSK deframer for one receive channel (r6.1, embedded block).\n\
+      \nInput: hard-decision bits (0/1, one per byte) from the differential decoder,\n\
+      grouped by a Stream to Vector block into vectors of `batch` bits.\nOutput, message\
+      \ port 'pdus': one PDU per link frame, metadata {'ch': k}; and\nonce a second\
+      \ a PDU with an empty payload and metadata {'ch': k, 'stats':\n{...}}, which\
+      \ the node block uses as this channel's liveness check.\n\nThe search is bpsk_phy.Deframer\
+      \ (next to the flowgraph). It replaces\ncorrelate_access_code_bb_ts -> repack_bits_bb\
+      \ -> tagged_stream_to_pdu, which\non GNU Radio 3.10.12 could wait for 65535\
+      \ bytes after one corrupted header\nand so stall the whole receiver ('repack_bits_bb\
+      \ is requesting more input\ndata than we can provide'). This block never waits\
+      \ for data it does not\nhave: it takes whatever whole vectors are there (Python\
+      \ is entered at most\n~60 times a second per channel instead of once per few\
+      \ symbols, and the\nscheduler never calls into Python just to ask - a basic_block's\
+      \ forecast()\nwould be a Python call on every scheduler pass), drops an implausible\n\
+      length at once, and keeps looking for access codes inside a frame it is\nstill\
+      \ collecting, so one bad header costs at most that one frame.\n\"\"\"\n\nimport\
+      \ os\nimport sys\nimport time\nimport traceback\n\nimport numpy as np\nimport\
+      \ pmt\nfrom gnuradio import gr\n\n\ndef _load(name):\n    \"\"\"Load a sibling\
+      \ module by path (GRC validates with exec() and no\n    __file__, from whatever\
+      \ directory it was started in).\"\"\"\n    import importlib.util\n    if name\
+      \ in sys.modules:\n        return sys.modules[name]\n    roots = []\n    try:\n\
+      \        roots.append(os.path.dirname(os.path.abspath(__file__)))\n    except\
+      \ NameError:\n        pass\n    roots.append(os.getcwd())\n    roots.extend([p\
+      \ for p in sys.path if p])\n    for root in roots:\n        path = os.path.join(root,\
+      \ name + '.py')\n        if os.path.isfile(path):\n            spec = importlib.util.spec_from_file_location(name,\
+      \ path)\n            mod = importlib.util.module_from_spec(spec)\n         \
+      \   sys.modules[name] = mod\n            try:\n                spec.loader.exec_module(mod)\n\
+      \            except Exception:\n                sys.modules.pop(name, None)\n\
+      \                raise\n            return mod\n    return None\n\n\ntry:\n\
+      \    _phy = _load('bpsk_phy')\n    _err = '' if _phy is not None else 'bpsk_phy.py\
+      \ not found'\nexcept Exception as _e:          # noqa: BLE001 - reported at\
+      \ run time\n    _phy, _err = None, repr(_e)\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"BPSK deframer: bits in, link frames out as PDUs.\"\"\"\n\n    def\
+      \ __init__(self, channel=0, max_len=600, batch=8192):\n        gr.sync_block.__init__(self,\
+      \ name='BPSK Deframer',\n                               in_sig=[(np.uint8, int(batch))],\
+      \ out_sig=None)\n        self.channel = int(channel)\n        self.batch = int(batch)\n\
+      \        self._port = pmt.intern('pdus')\n        self.message_port_register_out(self._port)\n\
+      \        self._core = (_phy.Deframer(max_len=int(max_len))\n               \
+      \       if _phy is not None else None)\n        self._ch = pmt.from_long(self.channel)\n\
+      \        self._k_ch = pmt.intern('ch')\n        self._k_stats = pmt.intern('stats')\n\
+      \        self._empty = pmt.init_u8vector(0, [])\n        self._next = 0.0\n\
+      \        self._faults = 0\n\n    def work(self, input_items, output_items):\n\
+      \        x = input_items[0]\n        n = len(x)\n        frames = ()\n     \
+      \   if n and self._core is not None:\n            try:\n                frames\
+      \ = self._core.feed(x.reshape(-1))\n            except Exception:          \
+      \           # noqa: BLE001\n                self._faults += 1\n            \
+      \    if self._faults <= 3:\n                    traceback.print_exc()\n    \
+      \    for f in frames:\n            meta = pmt.dict_add(pmt.make_dict(), self._k_ch,\
+      \ self._ch)\n            self.message_port_pub(self._port, pmt.cons(\n     \
+      \           meta, pmt.init_u8vector(len(f), list(f))))\n        now = time.time()\n\
+      \        if now >= self._next:\n            self._next = now + 1.0\n       \
+      \     st = dict(self._core.stats) if self._core is not None else {}\n      \
+      \      st['faults'] = self._faults\n            if self._core is None:\n   \
+      \             st['error'] = _err\n            meta = pmt.dict_add(pmt.make_dict(),\
+      \ self._k_ch, self._ch)\n            meta = pmt.dict_add(meta, self._k_stats,\
+      \ pmt.to_pmt(st))\n            self.message_port_pub(self._port, pmt.cons(meta,\
+      \ self._empty))\n        return n\n"
+    affinity: ''
+    alias: ''
+    batch: '8192'
+    channel: '1'
+    comment: ''
+    max_len: '600'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: '(''BPSK Deframer'', ''blk'', [(''channel'', ''0''), (''max_len'',
+      ''600''), (''batch'', ''8192'')], [(''0'', ''byte'', 8192)], [(''pdus'', ''message'',
+      1)], ''BPSK deframer: bits in, link frames out as PDUs.'', [''batch'', ''channel''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2060, 940]
+    rotation: 0
+    state: enabled
+- name: deframer_ch2
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"BPSK deframer for one receive channel (r6.1, embedded block).\n\
+      \nInput: hard-decision bits (0/1, one per byte) from the differential decoder,\n\
+      grouped by a Stream to Vector block into vectors of `batch` bits.\nOutput, message\
+      \ port 'pdus': one PDU per link frame, metadata {'ch': k}; and\nonce a second\
+      \ a PDU with an empty payload and metadata {'ch': k, 'stats':\n{...}}, which\
+      \ the node block uses as this channel's liveness check.\n\nThe search is bpsk_phy.Deframer\
+      \ (next to the flowgraph). It replaces\ncorrelate_access_code_bb_ts -> repack_bits_bb\
+      \ -> tagged_stream_to_pdu, which\non GNU Radio 3.10.12 could wait for 65535\
+      \ bytes after one corrupted header\nand so stall the whole receiver ('repack_bits_bb\
+      \ is requesting more input\ndata than we can provide'). This block never waits\
+      \ for data it does not\nhave: it takes whatever whole vectors are there (Python\
+      \ is entered at most\n~60 times a second per channel instead of once per few\
+      \ symbols, and the\nscheduler never calls into Python just to ask - a basic_block's\
+      \ forecast()\nwould be a Python call on every scheduler pass), drops an implausible\n\
+      length at once, and keeps looking for access codes inside a frame it is\nstill\
+      \ collecting, so one bad header costs at most that one frame.\n\"\"\"\n\nimport\
+      \ os\nimport sys\nimport time\nimport traceback\n\nimport numpy as np\nimport\
+      \ pmt\nfrom gnuradio import gr\n\n\ndef _load(name):\n    \"\"\"Load a sibling\
+      \ module by path (GRC validates with exec() and no\n    __file__, from whatever\
+      \ directory it was started in).\"\"\"\n    import importlib.util\n    if name\
+      \ in sys.modules:\n        return sys.modules[name]\n    roots = []\n    try:\n\
+      \        roots.append(os.path.dirname(os.path.abspath(__file__)))\n    except\
+      \ NameError:\n        pass\n    roots.append(os.getcwd())\n    roots.extend([p\
+      \ for p in sys.path if p])\n    for root in roots:\n        path = os.path.join(root,\
+      \ name + '.py')\n        if os.path.isfile(path):\n            spec = importlib.util.spec_from_file_location(name,\
+      \ path)\n            mod = importlib.util.module_from_spec(spec)\n         \
+      \   sys.modules[name] = mod\n            try:\n                spec.loader.exec_module(mod)\n\
+      \            except Exception:\n                sys.modules.pop(name, None)\n\
+      \                raise\n            return mod\n    return None\n\n\ntry:\n\
+      \    _phy = _load('bpsk_phy')\n    _err = '' if _phy is not None else 'bpsk_phy.py\
+      \ not found'\nexcept Exception as _e:          # noqa: BLE001 - reported at\
+      \ run time\n    _phy, _err = None, repr(_e)\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"BPSK deframer: bits in, link frames out as PDUs.\"\"\"\n\n    def\
+      \ __init__(self, channel=0, max_len=600, batch=8192):\n        gr.sync_block.__init__(self,\
+      \ name='BPSK Deframer',\n                               in_sig=[(np.uint8, int(batch))],\
+      \ out_sig=None)\n        self.channel = int(channel)\n        self.batch = int(batch)\n\
+      \        self._port = pmt.intern('pdus')\n        self.message_port_register_out(self._port)\n\
+      \        self._core = (_phy.Deframer(max_len=int(max_len))\n               \
+      \       if _phy is not None else None)\n        self._ch = pmt.from_long(self.channel)\n\
+      \        self._k_ch = pmt.intern('ch')\n        self._k_stats = pmt.intern('stats')\n\
+      \        self._empty = pmt.init_u8vector(0, [])\n        self._next = 0.0\n\
+      \        self._faults = 0\n\n    def work(self, input_items, output_items):\n\
+      \        x = input_items[0]\n        n = len(x)\n        frames = ()\n     \
+      \   if n and self._core is not None:\n            try:\n                frames\
+      \ = self._core.feed(x.reshape(-1))\n            except Exception:          \
+      \           # noqa: BLE001\n                self._faults += 1\n            \
+      \    if self._faults <= 3:\n                    traceback.print_exc()\n    \
+      \    for f in frames:\n            meta = pmt.dict_add(pmt.make_dict(), self._k_ch,\
+      \ self._ch)\n            self.message_port_pub(self._port, pmt.cons(\n     \
+      \           meta, pmt.init_u8vector(len(f), list(f))))\n        now = time.time()\n\
+      \        if now >= self._next:\n            self._next = now + 1.0\n       \
+      \     st = dict(self._core.stats) if self._core is not None else {}\n      \
+      \      st['faults'] = self._faults\n            if self._core is None:\n   \
+      \             st['error'] = _err\n            meta = pmt.dict_add(pmt.make_dict(),\
+      \ self._k_ch, self._ch)\n            meta = pmt.dict_add(meta, self._k_stats,\
+      \ pmt.to_pmt(st))\n            self.message_port_pub(self._port, pmt.cons(meta,\
+      \ self._empty))\n        return n\n"
+    affinity: ''
+    alias: ''
+    batch: '8192'
+    channel: '2'
+    comment: ''
+    max_len: '600'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: '(''BPSK Deframer'', ''blk'', [(''channel'', ''0''), (''max_len'',
+      ''600''), (''batch'', ''8192'')], [(''0'', ''byte'', 8192)], [(''pdus'', ''message'',
+      1)], ''BPSK deframer: bits in, link frames out as PDUs.'', [''batch'', ''channel''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2060, 1240]
+    rotation: 0
+    state: enabled
+- name: deframer_ch3
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"BPSK deframer for one receive channel (r6.1, embedded block).\n\
+      \nInput: hard-decision bits (0/1, one per byte) from the differential decoder,\n\
+      grouped by a Stream to Vector block into vectors of `batch` bits.\nOutput, message\
+      \ port 'pdus': one PDU per link frame, metadata {'ch': k}; and\nonce a second\
+      \ a PDU with an empty payload and metadata {'ch': k, 'stats':\n{...}}, which\
+      \ the node block uses as this channel's liveness check.\n\nThe search is bpsk_phy.Deframer\
+      \ (next to the flowgraph). It replaces\ncorrelate_access_code_bb_ts -> repack_bits_bb\
+      \ -> tagged_stream_to_pdu, which\non GNU Radio 3.10.12 could wait for 65535\
+      \ bytes after one corrupted header\nand so stall the whole receiver ('repack_bits_bb\
+      \ is requesting more input\ndata than we can provide'). This block never waits\
+      \ for data it does not\nhave: it takes whatever whole vectors are there (Python\
+      \ is entered at most\n~60 times a second per channel instead of once per few\
+      \ symbols, and the\nscheduler never calls into Python just to ask - a basic_block's\
+      \ forecast()\nwould be a Python call on every scheduler pass), drops an implausible\n\
+      length at once, and keeps looking for access codes inside a frame it is\nstill\
+      \ collecting, so one bad header costs at most that one frame.\n\"\"\"\n\nimport\
+      \ os\nimport sys\nimport time\nimport traceback\n\nimport numpy as np\nimport\
+      \ pmt\nfrom gnuradio import gr\n\n\ndef _load(name):\n    \"\"\"Load a sibling\
+      \ module by path (GRC validates with exec() and no\n    __file__, from whatever\
+      \ directory it was started in).\"\"\"\n    import importlib.util\n    if name\
+      \ in sys.modules:\n        return sys.modules[name]\n    roots = []\n    try:\n\
+      \        roots.append(os.path.dirname(os.path.abspath(__file__)))\n    except\
+      \ NameError:\n        pass\n    roots.append(os.getcwd())\n    roots.extend([p\
+      \ for p in sys.path if p])\n    for root in roots:\n        path = os.path.join(root,\
+      \ name + '.py')\n        if os.path.isfile(path):\n            spec = importlib.util.spec_from_file_location(name,\
+      \ path)\n            mod = importlib.util.module_from_spec(spec)\n         \
+      \   sys.modules[name] = mod\n            try:\n                spec.loader.exec_module(mod)\n\
+      \            except Exception:\n                sys.modules.pop(name, None)\n\
+      \                raise\n            return mod\n    return None\n\n\ntry:\n\
+      \    _phy = _load('bpsk_phy')\n    _err = '' if _phy is not None else 'bpsk_phy.py\
+      \ not found'\nexcept Exception as _e:          # noqa: BLE001 - reported at\
+      \ run time\n    _phy, _err = None, repr(_e)\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"BPSK deframer: bits in, link frames out as PDUs.\"\"\"\n\n    def\
+      \ __init__(self, channel=0, max_len=600, batch=8192):\n        gr.sync_block.__init__(self,\
+      \ name='BPSK Deframer',\n                               in_sig=[(np.uint8, int(batch))],\
+      \ out_sig=None)\n        self.channel = int(channel)\n        self.batch = int(batch)\n\
+      \        self._port = pmt.intern('pdus')\n        self.message_port_register_out(self._port)\n\
+      \        self._core = (_phy.Deframer(max_len=int(max_len))\n               \
+      \       if _phy is not None else None)\n        self._ch = pmt.from_long(self.channel)\n\
+      \        self._k_ch = pmt.intern('ch')\n        self._k_stats = pmt.intern('stats')\n\
+      \        self._empty = pmt.init_u8vector(0, [])\n        self._next = 0.0\n\
+      \        self._faults = 0\n\n    def work(self, input_items, output_items):\n\
+      \        x = input_items[0]\n        n = len(x)\n        frames = ()\n     \
+      \   if n and self._core is not None:\n            try:\n                frames\
+      \ = self._core.feed(x.reshape(-1))\n            except Exception:          \
+      \           # noqa: BLE001\n                self._faults += 1\n            \
+      \    if self._faults <= 3:\n                    traceback.print_exc()\n    \
+      \    for f in frames:\n            meta = pmt.dict_add(pmt.make_dict(), self._k_ch,\
+      \ self._ch)\n            self.message_port_pub(self._port, pmt.cons(\n     \
+      \           meta, pmt.init_u8vector(len(f), list(f))))\n        now = time.time()\n\
+      \        if now >= self._next:\n            self._next = now + 1.0\n       \
+      \     st = dict(self._core.stats) if self._core is not None else {}\n      \
+      \      st['faults'] = self._faults\n            if self._core is None:\n   \
+      \             st['error'] = _err\n            meta = pmt.dict_add(pmt.make_dict(),\
+      \ self._k_ch, self._ch)\n            meta = pmt.dict_add(meta, self._k_stats,\
+      \ pmt.to_pmt(st))\n            self.message_port_pub(self._port, pmt.cons(meta,\
+      \ self._empty))\n        return n\n"
+    affinity: ''
+    alias: ''
+    batch: '8192'
+    channel: '3'
+    comment: ''
+    max_len: '600'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: '(''BPSK Deframer'', ''blk'', [(''channel'', ''0''), (''max_len'',
+      ''600''), (''batch'', ''8192'')], [(''0'', ''byte'', 8192)], [(''pdus'', ''message'',
+      1)], ''BPSK deframer: bits in, link frames out as PDUs.'', [''batch'', ''channel''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2060, 1540]
+    rotation: 0
+    state: enabled
+- name: diff_decoder_ch0
+  id: digital_diff_decoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    coding: digital.DIFF_DIFFERENTIAL
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    modulus: '2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 640]
+    rotation: 0
+    state: enabled
+- name: diff_decoder_ch1
+  id: digital_diff_decoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    coding: digital.DIFF_DIFFERENTIAL
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    modulus: '2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 940]
+    rotation: 0
+    state: enabled
+- name: diff_decoder_ch2
+  id: digital_diff_decoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    coding: digital.DIFF_DIFFERENTIAL
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    modulus: '2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 1240]
+    rotation: 0
+    state: enabled
+- name: diff_decoder_ch3
+  id: digital_diff_decoder_bb
+  parameters:
+    affinity: ''
+    alias: ''
+    coding: digital.DIFF_DIFFERENTIAL
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    modulus: '2'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 1540]
+    rotation: 0
+    state: enabled
+- name: http_port
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Chat UI port
+    short_id: ''
+    type: intx
+    value: '8088'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 16]
+    rotation: 0
+    state: enabled
+- name: iio_pluto_sink_0
+  id: iio_pluto_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    attenuation1: tx_atten
+    bandwidth: (int)(0.9*radio_rate)
+    buffer_size: tx_buffer
+    comment: one LO for TX and RX on every node
+    cyclic: 'False'
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: (int)(center_freq)
+    fstop: '0'
+    len_tag_key: ''
+    samplerate: (int)(radio_rate)
+    type: fc32
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3420, 672]
+    rotation: 0
+    state: enabled
+- name: iio_pluto_source_0
+  id: iio_pluto_source
+  parameters:
+    affinity: ''
+    alias: ''
+    bandwidth: (int)(0.9*radio_rate)
+    bbdc: 'True'
+    buffer_size: rx_buffer
+    comment: 'manual gain: the node''s gain control sets it (IIO Attribute Sink) -
+      an AGC in the chip would falsify the channel levels'
+    filter: ''
+    filter_source: '''Auto'''
+    fpass: '0'
+    frequency: (int)(center_freq)
+    fstop: '0'
+    gain1: '''manual'''
+    len_tag_key: ''
+    manual_gain1: rx_gain
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    quadrature: 'True'
+    rfdc: 'True'
+    samplerate: (int)(radio_rate)
+    type: fc32
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [16, 1160]
+    rotation: 0
+    state: enabled
+- name: import_firdes
+  id: import
+  parameters:
+    alias: ''
+    comment: ''
+    imports: from gnuradio.filter import firdes
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 452]
+    rotation: 0
+    state: enabled
+- name: iq_keep_ch0
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '4096'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '100000'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 810]
+    rotation: 0
+    state: enabled
+- name: iq_keep_ch1
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '4096'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '100000'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 1110]
+    rotation: 0
+    state: enabled
+- name: iq_keep_ch2
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '4096'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '100000'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 1410]
+    rotation: 0
+    state: enabled
+- name: iq_keep_ch3
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '4096'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '100000'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1660, 1710]
+    rotation: 0
+    state: enabled
+- name: iq_pdu_ch0
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2020, 810]
+    rotation: 0
+    state: enabled
+- name: iq_pdu_ch1
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2020, 1110]
+    rotation: 0
+    state: enabled
+- name: iq_pdu_ch2
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2020, 1410]
+    rotation: 0
+    state: enabled
+- name: iq_pdu_ch3
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2020, 1710]
+    rotation: 0
+    state: enabled
+- name: iq_pkt_ch0
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '16384'
+    packet_len: '4096'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1820, 810]
+    rotation: 0
+    state: enabled
+- name: iq_pkt_ch1
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '16384'
+    packet_len: '4096'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1820, 1110]
+    rotation: 0
+    state: enabled
+- name: iq_pkt_ch2
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '16384'
+    packet_len: '4096'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1820, 1410]
+    rotation: 0
+    state: enabled
+- name: iq_pkt_ch3
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '16384'
+    packet_len: '4096'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1820, 1710]
+    rotation: 0
+    state: enabled
+- name: keys_dir
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Key directory
+    short_id: ''
+    type: str
+    value: '''keys'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1064, 16]
+    rotation: 0
+    state: enabled
+- name: link_layer
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"GNU Radio shim for the BPSK network node (r6.1: FDMA mesh)\
+      \ and chat app.\n\nThese files must sit in the same directory as the flowgraph:\n\
+      \n    bpsk_link.py    framing, addressing, Selective Repeat ARQ, file segmentation\n\
+      \    bpsk_mac.py     channel and address self-assignment, beacons\n    bpsk_secure.py\
+      \  end-to-end encryption: Noise KK sessions, sealing\n    bpsk_crypto.py  ChaCha20-Poly1305\
+      \ / X25519 (pure Python or 'cryptography')\n    bpsk_gain.py    closed-loop\
+      \ gain staging (RX gain, TX attenuation)\n    bpsk_phy.py     deframer, transmit\
+      \ framer, AFC, measurements (numpy)\n    bpsk_app.py     peers, conversations,\
+      \ receipts, HTTP + SSE server\n    chat_ui.html    the browser front end\n\n\
+      Encryption is on by default. Keys live in <rx_dir>/<keys_dir>: this node's\n\
+      private key (bpsk_keys.py init) and the keys the operator has approved in the\n\
+      UI. With my_addr = 0 and peer_addr = 0 (the default) the node joins the mesh:\n\
+      it derives its address from its key, picks a free channel, and lists every\n\
+      node in range. Setting both gives the r5.4 two-node behaviour.\n\nThis block\
+      \ owns none of that logic. It converts PMT to bytes, drives the\nstate machine\
+      \ and turns its decisions into messages for the radio blocks.\nr6.1: it has\
+      \ NO stream inputs. Everything it measures arrives as short\nsnapshots (Keep\
+      \ M in N -> Stream to Tagged Stream -> Tagged Stream to PDU,\nall C++), so nothing\
+      \ in the sample path ever waits for Python: the r6.0.1\nnode block consumed\
+      \ four symbol streams and the raw receiver samples in\ngeneral_work, was called\
+      \ thousands of times a second with a few samples,\nheld the GIL, and when it\
+      \ fell behind the backlog reached the radio source.\n\nPorts in\n    rx0..rx3\
+      \    PDUs from each channel's deframer: link frames, plus a\n              \
+      \  once-a-second statistics PDU (empty payload) - the liveness\n           \
+      \     check of that receive chain\n    meas0..3    512 recovered symbols (Costas\
+      \ output) of channel k, 10 a\n                second: SNR (EVM) and the constellation\
+      \ for the UI\n    iq0..3      4096 samples of channel k before the matched filter,\
+      \ 10 a\n                second: channel level (dBFS) and the carrier offset\
+      \ (AFC)\n    adc         8192 raw receiver samples, 20 a second: ADC peak, clipping,\n\
+      \                spectrum; the input of the gain control\n    txstat      the\
+      \ transmit framer's backlog, 20 a second\n    rx_frame    decoded frames from\
+      \ a single-receiver flowgraph (r5)\n    chat_in     the GNU Radio console edit\
+      \ box\n    tick        Message Strobe, 10 ms\nPorts out\n    tx_frame    link\
+      \ frames for the transmit framer (PDU)\n    tx_en       {'enable': bool} for\
+      \ the transmit framer\n    tx_ctl      {'inc': rad/sample} for the rotator that\
+      \ puts the\n                transmitter on its channel\n    afc0..3     {'inc':\
+      \ rad/sample} for each receive channel's rotator\n    rx_attr     {'hardwaregain':\
+      \ dB} for the IIO Attribute Sink (RX)\n    tx_attr     {'hardwaregain': -dB}\
+      \ for the IIO Attribute Sink (TX)\n    log         console lines\n\nThe chat\
+      \ UI is served on 127.0.0.1:<http_port> and, like the stderr tap\nthat counts\
+      \ gr-iio's 'O'/'U' marks and the telemetry files, starts on the\nfirst tick\
+      \ rather than in __init__: GRC instantiates this block every time\nit validates\
+      \ the flowgraph and must not be left holding a socket, a thread\nor a file.\n\
+      \"\"\"\n\nimport math\nimport os\nimport sys\nimport threading\nimport time\n\
+      import traceback\nfrom collections import deque\n\nimport numpy as np\nimport\
+      \ pmt\nfrom gnuradio import gr\n\n\ndef _load(name):\n    \"\"\"Load a sibling\
+      \ module by absolute path, never by module name.\n\n    GRC validates this block\
+      \ by running exec() on this source in an empty\n    namespace, so there is no\
+      \ __file__ and the working directory is wherever\n    GRC was started. Loading\
+      \ the file directly makes both irrelevant, and\n    swallowing every failure\
+      \ keeps a missing module from painting the block\n    red in the editor - __init__\
+      \ reports it on the console instead.\n    \"\"\"\n    import importlib.util\n\
+      \n    if name in sys.modules:\n        return sys.modules[name]\n\n    roots\
+      \ = []\n    try:\n        roots.append(os.path.dirname(os.path.abspath(__file__)))\n\
+      \    except NameError:\n        pass\n    roots.append(os.getcwd())\n    roots.extend([entry\
+      \ for entry in sys.path if entry])\n\n    for root in roots:\n        path =\
+      \ os.path.join(root, name + '.py')\n        if not os.path.isfile(path):\n \
+      \           continue\n        spec = importlib.util.spec_from_file_location(name,\
+      \ path)\n        module = importlib.util.module_from_spec(spec)\n        sys.modules[name]\
+      \ = module\n        try:\n            spec.loader.exec_module(module)\n    \
+      \    except Exception:\n            sys.modules.pop(name, None)\n          \
+      \  raise\n        return module\n    return None\n\n\n_load_error = ''\ntry:\n\
+      \    bpsk_link = _load('bpsk_link')\n    for _dep in ('bpsk_crypto', 'bpsk_secure',\
+      \ 'bpsk_mac', 'bpsk_gain',\n                 'bpsk_phy'):\n        if bpsk_link\
+      \ is not None and _load(_dep) is None:\n            bpsk_link = None\n    bpsk_app\
+      \ = _load('bpsk_app') if bpsk_link is not None else None\n    bpsk_phy = sys.modules.get('bpsk_phy')\n\
+      \    if bpsk_app is None:\n        _load_error = ('bpsk_link.py / bpsk_crypto.py\
+      \ / bpsk_secure.py / '\n                       'bpsk_mac.py / bpsk_gain.py /\
+      \ bpsk_phy.py / '\n                       'bpsk_app.py not found next to the\
+      \ flowgraph')\nexcept Exception as _err:            # noqa: BLE001 - reported,\
+      \ never raised\n    bpsk_link = bpsk_app = bpsk_phy = None\n    _load_error\
+      \ = repr(_err)\n\n\ndef _to_text(msg):\n    \"\"\"Accept whatever the QT edit\
+      \ box emits and return a str.\"\"\"\n    try:\n        if pmt.is_symbol(msg):\n\
+      \            return pmt.symbol_to_string(msg)\n        if pmt.is_pair(msg):\n\
+      \            val = pmt.cdr(msg)\n            if pmt.is_u8vector(val):\n    \
+      \            return bytes(bytearray(pmt.u8vector_elements(val))).decode(\n \
+      \                   'utf-8', 'replace')\n            if pmt.is_symbol(val):\n\
+      \                return pmt.symbol_to_string(val)\n    except Exception:\n \
+      \       pass\n    return None\n\n\ndef _to_bytes(msg):\n    \"\"\"Extract the\
+      \ u8vector of a PDU as bytes.\"\"\"\n    try:\n        if pmt.is_pair(msg):\n\
+      \            val = pmt.cdr(msg)\n            if pmt.is_u8vector(val):\n    \
+      \            return bytes(bytearray(pmt.u8vector_elements(val)))\n    except\
+      \ Exception:\n        pass\n    return None\n\n\ndef _to_complex(msg):\n   \
+      \ \"\"\"The c32vector of a PDU as a numpy array (or None).\"\"\"\n    try:\n\
+      \        if pmt.is_pair(msg):\n            val = pmt.cdr(msg)\n            if\
+      \ pmt.is_c32vector(val):\n                return np.asarray(pmt.c32vector_elements(val),\n\
+      \                                  dtype=np.complex64)\n    except Exception:\n\
+      \        pass\n    return None\n\n\ndef _meta(msg):\n    try:\n        if pmt.is_pair(msg)\
+      \ and pmt.is_dict(pmt.car(msg)):\n            return pmt.to_python(pmt.car(msg))\
+      \ or {}\n    except Exception:\n        pass\n    return {}\n\n\nNUM_CHANNELS\
+      \ = 4          # fixed by the flowgraph: four receive chains\nOUT_RATE_SPS =\
+      \ 4          # samples per symbol after the channel filters\nSTALL = 3.0   \
+      \            # seconds without data that make a chain 'stalled'\n# snapshot\
+      \ taps in the flowgraph (keep m in n): one every n items of\nTAP_EVERY = {'meas':\
+      \ 25000,     # symbols (after the Costas loop)\n             'iq': 100000, \
+      \     # channel samples (after the AFC rotator)\n             'adc': 300000}\
+      \     # radio samples\nCPU_EVERY = 2.0           # seconds between per-thread\
+      \ CPU readings\nVIEW_EVERY = 1.0          # seconds between constellation/spectrum\
+      \ pushes\n\n\nclass StderrTap(object):\n    \"\"\"Counts gr-iio's overflow 'O'\
+      \ / underflow 'U' marks.\n\n    gr-iio writes them with fprintf(stderr, ...)\
+      \ from its own overflow and\n    underflow threads, at most one per second per\
+      \ direction, so the only\n    place to see them is file descriptor 2. A pipe\
+      \ is put there; a thread\n    copies everything to the real stderr unchanged\
+      \ and counts the marks\n    (bpsk_phy.count_ou). The pipe is enlarged to 1 MiB\
+      \ so writers never\n    block even if this thread is briefly kept from the GIL,\
+      \ and any failure\n    puts the original stderr back.\n    \"\"\"\n\n    def\
+      \ __init__(self):\n        self.overflows = 0\n        self.underflows = 0\n\
+      \        self.active = False\n        self.error = None\n        self._orig\
+      \ = None\n        self._r = None\n        self._thread = None\n        self._state\
+      \ = None\n\n    def start(self):\n        if bpsk_phy is None or self.active:\n\
+      \            return\n        try:\n            sys.stderr.flush()\n        \
+      \    self._orig = os.dup(2)\n            r, w = os.pipe()\n            try:\n\
+      \                import fcntl\n                fcntl.fcntl(w, getattr(fcntl,\
+      \ 'F_SETPIPE_SZ', 1031), 1 << 20)\n            except Exception:           \
+      \          # noqa: BLE001\n                pass\n            os.dup2(w, 2)\n\
+      \            os.close(w)\n            self._r = r\n            self.active =\
+      \ True\n            self._thread = threading.Thread(target=self._run, daemon=True,\n\
+      \                                            name='bpsk-stderr-tap')\n     \
+      \       self._thread.start()\n        except Exception as exc:             \
+      \     # noqa: BLE001\n            self.error = repr(exc)\n            self._restore()\n\
+      \n    def _run(self):\n        try:\n            while True:\n             \
+      \   data = os.read(self._r, 65536)\n                if not data:\n         \
+      \           break\n                os.write(self._orig, data)\n            \
+      \    o, u, self._state = bpsk_phy.count_ou(\n                    data.decode('latin-1'),\
+      \ self._state)\n                self.overflows += o\n                self.underflows\
+      \ += u\n        except Exception as exc:                  # noqa: BLE001\n \
+      \           self.error = repr(exc)\n        finally:\n            self._restore()\n\
+      \n    def _restore(self):\n        if self._orig is not None:\n            try:\n\
+      \                os.dup2(self._orig, 2)\n            except OSError:\n     \
+      \           pass\n        self.active = False\n\n    def stop(self):\n     \
+      \   if not self.active:\n            return\n        self._restore()       \
+      \        # writers now go to the real stderr\n        try:\n            os.close(self._r)\
+      \         # the reader thread sees EOF/EBADF\n        except OSError:\n    \
+      \        pass\n        if self._thread is not None:\n            self._thread.join(timeout=0.5)\n\
+      \        try:\n            os.close(self._orig)\n        except OSError:\n \
+      \           pass\n        self._orig = None\n\n\ndef _thread_cpu():\n    \"\"\
+      \"{tid: (name, cpu seconds)} of this process's threads (Linux).\"\"\"\n    out\
+      \ = {}\n    tick = float(os.sysconf('SC_CLK_TCK'))\n    base = '/proc/self/task'\n\
+      \    try:\n        tids = os.listdir(base)\n    except OSError:\n        return\
+      \ out\n    for tid in tids:\n        try:\n            with open('%s/%s/stat'\
+      \ % (base, tid)) as fh:\n                st = fh.read()\n            with open('%s/%s/comm'\
+      \ % (base, tid)) as fh:\n                name = fh.read().strip()\n        except\
+      \ OSError:\n            continue\n        f = st[st.rfind(')') + 2:].split()\n\
+      \        out[tid] = (name, (int(f[11]) + int(f[12])) / tick)\n    return out\n\
+      \n\nclass blk(gr.basic_block):\n    \"\"\"BPSK network node: MAC, ARQ link layer,\
+      \ encryption, chat UI.\"\"\"\n\n    def __init__(self, my_addr=0, peer_addr=0,\
+      \ ack_timeout=0.5, max_retries=5,\n                 frag_size=256, queue_ahead=0.03,\
+      \ sym_rate=250000.0,\n                 overhead=140, rx_dir='.', nickname='',\
+      \ http_port=8088,\n                 open_ui=True, center_freq=0.0, security=True,\n\
+      \                 keys_dir='keys', window=32, channel=-1, ch_spacing=600e3,\n\
+      \                 ch_first=450e3, radio_rate=6e6, rx_gain=30, tx_atten=50,\n\
+      \                 agc=True, telemetry=True, plan_file='', count_ou=True):\n\
+      \        gr.basic_block.__init__(self, name='BPSK Chat Node', in_sig=None,\n\
+      \                                out_sig=None)\n        self.http_port = int(http_port)\n\
+      \        self.open_ui = bool(open_ui)\n        self.radio_rate = float(radio_rate)\n\
+      \        self.ch_rate = OUT_RATE_SPS * float(sym_rate)\n        # a chain is\
+      \ stalled after STALL s without data, or four snapshot\n        # intervals\
+      \ when those are longer (slowed-down bench)\n        self.stall = max(STALL,\
+      \ 4.0 * max(\n            TAP_EVERY['meas'] / float(sym_rate),\n           \
+      \ TAP_EVERY['iq'] / self.ch_rate,\n            TAP_EVERY['adc'] / self.radio_rate))\n\
+      \        self.app = None\n        self.link = None\n        if bpsk_app is None:\n\
+      \            print('[chat] ERROR: could not load the protocol modules: %s'\n\
+      \                  % _load_error, flush=True)\n        else:\n            root\
+      \ = os.path.abspath(rx_dir or '.')\n            store = os.path.join(root, 'chat_files')\n\
+      \            chan = int(channel)\n            self.app = bpsk_app.ChatApp(\n\
+      \                my_addr=int(my_addr) or None, peer_addr=int(peer_addr) or None,\n\
+      \                nick=nickname or None, store_dir=store,\n                ack_timeout=ack_timeout,\
+      \ max_retries=max_retries,\n                frag_size=frag_size, queue_ahead=queue_ahead,\n\
+      \                sym_rate=sym_rate, overhead=overhead,\n                tx_freq=center_freq,\
+      \ rx_freq=center_freq,\n                security=bool(security),\n         \
+      \       keys_dir=os.path.join(root, keys_dir or 'keys'),\n                window=int(window),\n\
+      \                channel=chan if 0 <= chan < NUM_CHANNELS else None,\n     \
+      \           num_channels=NUM_CHANNELS, ch_spacing=float(ch_spacing),\n     \
+      \           ch_first=float(ch_first), filler='keepalive',\n                gain=dict(rx_gain=rx_gain,\
+      \ tx_atten=tx_atten,\n                          auto=bool(agc)),\n         \
+      \       telemetry_dir=(os.path.join(root, 'telemetry')\n                   \
+      \            if telemetry else None),\n                plan_file=(os.path.join(root,\
+      \ plan_file)\n                           if plan_file else None))\n        \
+      \    self.link = self.app.link\n\n        # GNU Radio's Python gateway looks\
+      \ a handler up BY NAME on the block\n        # (set_msg_handler passes handler.__name__\
+      \ to C++), so every port\n        # needs a real method - a lambda or partial\
+      \ aborts the flowgraph.\n        handlers = [('chat_in', self._on_chat), ('rx_frame',\
+      \ self._on_rx),\n                    ('tick', self._on_tick), ('adc', self._on_adc),\n\
+      \                    ('txstat', self._on_txstat)]\n        for k in range(NUM_CHANNELS):\n\
+      \            handlers += [('rx%d' % k, getattr(self, '_on_rx%d' % k)),\n   \
+      \                      ('meas%d' % k, getattr(self, '_on_meas%d' % k)),\n  \
+      \                       ('iq%d' % k, getattr(self, '_on_iq%d' % k))]\n     \
+      \   for port, fn in handlers:\n            self.message_port_register_in(pmt.intern(port))\n\
+      \            self.set_msg_handler(pmt.intern(port), fn)\n        outs = ['tx_frame',\
+      \ 'tx_en', 'tx_ctl', 'rx_attr', 'tx_attr', 'log'] \\\n            + ['afc%d'\
+      \ % k for k in range(NUM_CHANNELS)]\n        for port in outs:\n           \
+      \ self.message_port_register_out(pmt.intern(port))\n\n        self._lock = threading.RLock()\n\
+      \        self._last_strobe = 0.0\n        self._watchdog = None\n        self._server\
+      \ = None\n        self._opened = False\n        # Set by stop(). Everything\
+      \ that can touch a message port or acquire a\n        # resource checks it first:\
+      \ after stop() the runtime is tearing the\n        # block down, and publishing\
+      \ to a port from a Python thread at that\n        # point is a call into freed\
+      \ C++.\n        self._halt = threading.Event()\n        self._faults = 0\n \
+      \       # Interned once; _dispatch runs up to 100 times a second.\n        self._port_log\
+      \ = pmt.intern('log')\n        self._port_tx = pmt.intern('tx_frame')\n    \
+      \    self._port_en = pmt.intern('tx_en')\n        self._port_ctl = pmt.intern('tx_ctl')\n\
+      \        self._port_rxa = pmt.intern('rx_attr')\n        self._port_txa = pmt.intern('tx_attr')\n\
+      \        self._port_afc = [pmt.intern('afc%d' % k) for k in range(NUM_CHANNELS)]\n\
+      \        self._k_inc = pmt.intern('inc')\n        self._k_en = pmt.intern('enable')\n\
+      \        self._k_gain = pmt.intern('hardwaregain')\n        # Physical-layer\
+      \ state (r6.1).\n        self._afc = ([bpsk_phy.Afc(self.ch_rate) for _ in range(NUM_CHANNELS)]\n\
+      \                     if bpsk_phy is not None else [])\n        self._lvl =\
+      \ [None] * NUM_CHANNELS          # (t, dBFS) per channel\n        self._lvl_push\
+      \ = 0.0\n        self._seen = {'meas': [0.0] * NUM_CHANNELS, 'iq': [0.0] * NUM_CHANNELS,\n\
+      \                      'dfr': [0.0] * NUM_CHANNELS, 'adc': 0.0}\n        self._dfr\
+      \ = [None] * NUM_CHANNELS\n        self._dfr_bits = [None] * NUM_CHANNELS\n\
+      \        self._fault = None\n        self._fault_told = -1e9\n        self._started\
+      \ = None\n        self._disp = deque()                       # (serial, airtime)\
+      \ sent\n        self._serial = 0\n        self._txq = {}\n        self._tap\
+      \ = StderrTap() if count_ou else None\n        self._cpu_prev = None\n     \
+      \   self._cpu_next = 0.0\n        self._view = {'const': [None] * NUM_CHANNELS,\
+      \ 'spectrum': None}\n        self._view_next = 0.0\n        if self.link is\
+      \ not None:\n            self._say(self.app.banner())\n            if self.app.plan_note:\n\
+      \                self._say(self.app.plan_note)\n\n    # ------------------------------------------------------------\
+      \ plumbing\n    def _say(self, text):\n        for line in str(text).splitlines():\n\
+      \            print('[link] %s' % line, flush=True)\n        if self._halt.is_set():\n\
+      \            return\n        self.message_port_pub(self._port_log, pmt.string_to_symbol(str(text)))\n\
+      \n    def _inc(self, offset_hz, rate):\n        return pmt.dict_add(pmt.make_dict(),\
+      \ self._k_inc,\n                            pmt.from_double(2.0 * math.pi *\
+      \ offset_hz / rate))\n\n    def _dispatch(self, actions):\n        if self._halt.is_set():\n\
+      \            return\n        for kind, value in actions:\n            if kind\
+      \ == 'tx':\n                vec = pmt.init_u8vector(len(value), list(bytearray(value)))\n\
+      \                self.message_port_pub(self._port_tx, pmt.cons(pmt.PMT_NIL,\
+      \ vec))\n                self._serial += 1\n                self._disp.append((self._serial,\n\
+      \                                   self.link.radio.airtime(len(value))))\n\
+      \                while len(self._disp) > 4096:\n                    self._disp.popleft()\n\
+      \            elif kind == 'chan':\n                # Retune the transmitter:\
+      \ the rotator after the modulator.\n                # Receive is untouched (all\
+      \ channels).\n                self.message_port_pub(self._port_ctl, self._inc(\n\
+      \                    float(self.app.offset(value)), self.radio_rate))\n    \
+      \        elif kind == 'txen':\n                self.message_port_pub(self._port_en,\
+      \ pmt.dict_add(\n                    pmt.make_dict(), self._k_en, pmt.from_bool(bool(value))))\n\
+      \            elif kind == 'gain':\n                # IIO Attribute Sinks; bpsk_gain\
+      \ keeps the values in range,\n                # which matters: attr_sink throws\
+      \ on a refused write.\n                v = int(value['value'])\n           \
+      \     port = self._port_rxa if value['what'] == 'rx' \\\n                  \
+      \  else self._port_txa\n                text = str(v if value['what'] == 'rx'\
+      \ else -v)\n                self.message_port_pub(port, pmt.dict_add(\n    \
+      \                pmt.make_dict(), self._k_gain, pmt.intern(text)))\n       \
+      \     elif kind == 'log':\n                self._say(value)\n\n    def _fault_tb(self,\
+      \ where):\n        self._faults += 1\n        n = self._faults\n        if n\
+      \ <= 5 or n % 1000 == 0:\n            print('[chat] INTERNAL ERROR #%d in %s\
+      \ - that input was discarded, '\n                  'the node keeps running:'\
+      \ % (n, where), flush=True)\n            traceback.print_exc()\n           \
+      \ sys.stdout.flush()\n            sys.stderr.flush()\n            if n == 5:\n\
+      \                print('[chat] further tracebacks are printed every 1000th '\n\
+      \                      'fault only', flush=True)\n            try:\n       \
+      \         self._say('internal error in %s (#%d) - traceback on the '\n     \
+      \                     'terminal' % (where, n))\n            except Exception:\n\
+      \                pass\n\n    # --------------------------------------------------------------\
+      \ startup\n    def _ensure_running(self):\n        \"\"\"Start the UI server,\
+      \ the fallback timer and the stderr tap on first\n        traffic. Deferred\
+      \ out of __init__ so that GRC, which instantiates this\n        block every\
+      \ time it validates the flowgraph, never binds the port,\n        spawns a thread\
+      \ or redirects a file descriptor.\n        \"\"\"\n        if self.app is None\
+      \ or self._halt.is_set():\n            return\n        if self._started is None:\n\
+      \            self._started = time.time()\n            if self._tap is not None:\n\
+      \                self._tap.start()\n            # gr-iio's Pluto source template\
+      \ never applies its RF bandwidth\n            # parameter (3.10), so the receiver's\
+      \ analog filter is whatever\n            # the device had. Set it for the channel\
+      \ plan: 0.9 x the rate.\n            bw = int(max(2e5, min(5.6e7, 0.9 * self.radio_rate)))\n\
+      \            self.message_port_pub(self._port_rxa, pmt.dict_add(\n         \
+      \       pmt.make_dict(), pmt.intern('rf_bandwidth'),\n                pmt.intern(str(bw))))\n\
+      \        if self._server is None:\n            try:\n                self._server,\
+      \ _ = bpsk_app.serve(self.app, self.http_port)\n                url = 'http://127.0.0.1:%d/'\
+      \ % self.http_port\n                self._say('chat UI ready at %s  (files in\
+      \ %s)'\n                          % (url, self.app.store_dir))\n           \
+      \     if self.open_ui and not self._opened:\n                    self._opened\
+      \ = True\n                    threading.Thread(target=self._open_browser, args=(url,),\n\
+      \                                     daemon=True).start()\n            except\
+      \ OSError as exc:\n                self._server = False        # do not retry\
+      \ every 10 ms\n                self._say('could not start the chat UI on port\
+      \ %d: %s'\n                          % (self.http_port, exc))\n        if self._watchdog\
+      \ is None:\n            self._watchdog = threading.Thread(target=self._watchdog_loop,\n\
+      \                                              daemon=True)\n            self._watchdog.start()\n\
+      \n    @staticmethod\n    def _open_browser(url):\n        import webbrowser\n\
+      \        time.sleep(0.7)\n        try:\n            webbrowser.open(url)\n \
+      \       except Exception:\n            pass\n\n    def stop(self):\n       \
+      \ \"\"\"Stop the watchdog and release the port, in that order.\n\n        Order\
+      \ matters. The watchdog drives on_tick and publishes the frames it\n       \
+      \ produces; left running it keeps calling message_port_pub while the\n     \
+      \   runtime destroys the block. Because stop() also freezes _last_strobe,\n\
+      \        the watchdog ENGAGES within 250 ms of teardown and then publishes at\n\
+      \        100 Hz, so this is the steady state during shutdown, not a rare race.\n\
+      \        \"\"\"\n        self._halt.set()\n        watchdog, self._watchdog\
+      \ = self._watchdog, None\n        if watchdog is not None and watchdog.is_alive():\n\
+      \            watchdog.join(timeout=1.0)\n        server, self._server = self._server,\
+      \ None\n        if server:\n            bpsk_app.shutdown(server)\n        if\
+      \ self._tap is not None:\n            self._tap.stop()\n        if self.app\
+      \ is not None:\n            self.app.close()\n        return True\n\n    # --------------------------------------------------------\
+      \ message ports\n    def _watchdog_loop(self):\n        \"\"\"Drive on_tick\
+      \ if the Message Strobe stops delivering.\n\n        Every ARQ timer and the\
+      \ beacons hang off the tick port. If that port\n        goes quiet the link\
+      \ silently wedges: nothing retransmits and the queue\n        never drains.\
+      \ This takes over after 250 ms of silence and stands down\n        if the strobe\
+      \ returns.\n        \"\"\"\n        engaged = False\n        while not self._halt.is_set():\n\
+      \            if self._halt.wait(0.01):\n                return             \
+      \         # stop() asked us to leave\n            try:\n                with\
+      \ self._lock:\n                    if self.app is None or self._halt.is_set():\n\
+      \                        continue\n                    if (time.time() - self._last_strobe)\
+      \ < 0.25:\n                        if engaged:\n                           \
+      \ engaged = False\n                            self._say('message strobe recovered,\
+      \ watchdog '\n                                      'standing down')\n     \
+      \                   continue\n                    if not engaged:\n        \
+      \                engaged = True\n                        self._say('WARNING:\
+      \ no tick from the Message Strobe '\n                                  'block\
+      \ - driving ARQ timers and beacons '\n                                  'from\
+      \ the fallback thread instead')\n                    self._dispatch(self.app.on_tick(time.time()))\n\
+      \            except Exception:\n                self._fault_tb('watchdog')\n\
+      \n    def _on_chat(self, msg):\n        if self.app is None or self._halt.is_set():\n\
+      \            return\n        text = _to_text(msg)\n        if text is None:\n\
+      \            return\n        try:\n            with self._lock:\n          \
+      \      self._ensure_running()\n                self._dispatch(self.app.on_console(text,\
+      \ time.time()))\n        except Exception:\n            self._fault_tb('chat_in')\n\
+      \n    def _on_rx(self, msg, channel=None):\n        if self.app is None or self._halt.is_set():\n\
+      \            return\n        raw = _to_bytes(msg)\n        if raw is None:\n\
+      \            return\n        try:\n            with self._lock:\n          \
+      \      self._ensure_running()\n                now = time.time()\n         \
+      \       if not raw:\n                    meta = _meta(msg)\n               \
+      \     if channel is not None and 'stats' in meta:\n                        self._on_deframer_stats(channel,\
+      \ meta['stats'], now)\n                    return\n                self._dispatch(self.app.on_rx(raw,\
+      \ now, channel=channel))\n        except Exception:\n            self._fault_tb('rx_frame'\
+      \ if channel is None else 'rx%d' % channel)\n\n    def _on_rx0(self, msg):\n\
+      \        self._on_rx(msg, 0)\n\n    def _on_rx1(self, msg):\n        self._on_rx(msg,\
+      \ 1)\n\n    def _on_rx2(self, msg):\n        self._on_rx(msg, 2)\n\n    def\
+      \ _on_rx3(self, msg):\n        self._on_rx(msg, 3)\n\n    def _on_meas0(self,\
+      \ msg):\n        self._on_meas(msg, 0)\n\n    def _on_meas1(self, msg):\n  \
+      \      self._on_meas(msg, 1)\n\n    def _on_meas2(self, msg):\n        self._on_meas(msg,\
+      \ 2)\n\n    def _on_meas3(self, msg):\n        self._on_meas(msg, 3)\n\n   \
+      \ def _on_iq0(self, msg):\n        self._on_iq(msg, 0)\n\n    def _on_iq1(self,\
+      \ msg):\n        self._on_iq(msg, 1)\n\n    def _on_iq2(self, msg):\n      \
+      \  self._on_iq(msg, 2)\n\n    def _on_iq3(self, msg):\n        self._on_iq(msg,\
+      \ 3)\n\n    def _on_tick(self, msg):\n        if self.app is None or self._halt.is_set():\n\
+      \            return\n        try:\n            with self._lock:\n          \
+      \      now = time.time()\n                self._last_strobe = now\n        \
+      \        self._ensure_running()\n                self._push_levels(now)\n  \
+      \              self._dispatch(self.app.on_tick(now))\n                self._housekeeping(now)\n\
+      \        except Exception:\n            self._fault_tb('tick')\n\n    # -------------------------------------------------\
+      \ physical layer (r6.1)\n    def _on_meas(self, msg, k):\n        \"\"\"Recovered\
+      \ symbols of channel k: SNR from the EVM (decisions on\n        the real axis,\
+      \ which is what a locked differential BPSK receiver\n        produces after\
+      \ the Costas loop), and the constellation for the UI.\"\"\"\n        if self.app\
+      \ is None or self._halt.is_set() or bpsk_phy is None:\n            return\n\
+      \        try:\n            x = _to_complex(msg)\n            if x is None or\
+      \ not len(x):\n                return\n            now = time.time()\n     \
+      \       self._seen['meas'][k] = now\n            snr, evm = bpsk_phy.evm_snr(x)\n\
+      \            with self._lock:\n                if snr is None:\n           \
+      \         self.app.set_radio_metrics(snr_db=None, evm=None,\n              \
+      \                                 locked=False, channel=k)\n               \
+      \ else:\n                    self.app.set_radio_metrics(\n                 \
+      \       snr_db=round(snr, 2), evm=round(100.0 * evm, 2),\n                 \
+      \       locked=bool(snr > 5.0), channel=k)\n            if now >= self._view_next\
+      \ - 0.5:\n                pts = x[:96]\n                self._view['const'][k]\
+      \ = [[round(float(z.real), 2),\n                                           round(float(z.imag),\
+      \ 2)]\n                                          for z in pts]\n        except\
+      \ Exception:\n            self._fault_tb('meas%d' % k)\n\n    def _on_iq(self,\
+      \ msg, k):\n        \"\"\"Channel k before the matched filter: its in-band level\
+      \ relative\n        to ADC full scale (the channel filters have unity gain;\
+      \ the level is\n        taken after a matched filter, so it is what the decoder\
+      \ sees) and\n        the AFC.\"\"\"\n        if self.app is None or self._halt.is_set()\
+      \ or bpsk_phy is None:\n            return\n        try:\n            x = _to_complex(msg)\n\
+      \            if x is None or not len(x):\n                return\n         \
+      \   now = time.time()\n            self._seen['iq'][k] = now\n            lvl\
+      \ = bpsk_phy.inband_level_db(x)\n            self._lvl[k] = (now, round(lvl,\
+      \ 1))\n            with self._lock:\n                self.app.set_radio_metrics(level_db=round(lvl,\
+      \ 1), channel=k)\n            afc = self._afc[k]\n            inc = afc.update(now,\
+      \ x)\n            if inc is not None and not self._halt.is_set():\n        \
+      \        self.message_port_pub(self._port_afc[k], pmt.dict_add(\n          \
+      \          pmt.make_dict(), self._k_inc, pmt.from_double(inc)))\n        except\
+      \ Exception:\n            self._fault_tb('iq%d' % k)\n\n    def _on_adc(self,\
+      \ msg):\n        \"\"\"Raw receiver samples: ADC peak and clipping (the gain\
+      \ control's\n        input), and a spectrum for the UI.\"\"\"\n        if self.app\
+      \ is None or self._halt.is_set() or bpsk_phy is None:\n            return\n\
+      \        try:\n            x = _to_complex(msg)\n            if x is None or\
+      \ not len(x):\n                return\n            now = time.time()\n     \
+      \       self._seen['adc'] = now\n            st = bpsk_phy.adc_stats(x)\n  \
+      \          with self._lock:\n                self.app.set_adc(peak_dbfs=round(st['peak_dbfs'],\
+      \ 1),\n                                 rms_dbfs=round(st['rms_dbfs'], 1),\n\
+      \                                 clip=st['clip'], t=now)\n            if now\
+      \ >= self._view_next - 0.5 and self._view['spectrum'] is None:\n           \
+      \     self._view['spectrum'] = bpsk_phy.spectrum_db(x, 128)\n        except\
+      \ Exception:\n            self._fault_tb('adc')\n\n    def _on_txstat(self,\
+      \ msg):\n        \"\"\"The transmit framer's report: correct the airtime model.\"\
+      \"\"\n        if self.app is None or self._halt.is_set():\n            return\n\
+      \        try:\n            st = pmt.to_python(msg) if pmt.is_dict(msg) else\
+      \ None\n            if not st:\n                return\n            received\
+      \ = (st.get('accepted', 0) + st.get('dropped', 0)\n                        +\
+      \ st.get('rejected', 0))\n            while self._disp and self._disp[0][0]\
+      \ <= received:\n                self._disp.popleft()\n            pending =\
+      \ sum(a for _, a in self._disp)\n            now = time.time()\n           \
+      \ with self._lock:\n                if st.get('enabled') and st.get('backlog')\
+      \ is not None:\n                    self.link.radio.observe(\n             \
+      \           now, float(st['t']) + float(st['backlog']) + pending)\n        \
+      \        self._txq = {'backlog': st.get('backlog'),\n                      \
+      \       'dropped': st.get('dropped', 0),\n                             'flushed':\
+      \ st.get('flushed', 0),\n                             'enabled': bool(st.get('enabled')),\n\
+      \                             'sent': st.get('sent', 0),\n                 \
+      \            'fill_bits': st.get('fill_bits', 0),\n                        \
+      \     'model_error': self.link.radio.model_error,\n                        \
+      \     'error': st.get('error')}\n        except Exception:\n            self._fault_tb('txstat')\n\
+      \n    def _on_deframer_stats(self, k, stats, now):\n        if not isinstance(stats,\
+      \ dict):\n            return\n        bits = stats.get('bits')\n        if bits\
+      \ is not None and bits != self._dfr_bits[k]:\n            self._seen['dfr'][k]\
+      \ = now\n        self._dfr_bits[k] = bits\n        self._dfr[k] = stats\n\n\
+      \    def _push_levels(self, now):\n        \"\"\"One level per channel, all\
+      \ from the last 0.3 s, ten times a\n        second: the MAC's energy detection\
+      \ compares them with each other.\"\"\"\n        if now - self._lvl_push < 0.1:\n\
+      \            return\n        self._lvl_push = now\n        lv = [(v[1] if v\
+      \ is not None and now - v[0] < 0.3 else None)\n              for v in self._lvl]\n\
+      \        if any(x is not None for x in lv):\n            self.app.set_channel_levels(lv,\
+      \ now)\n\n    def _housekeeping(self, now):\n        \"\"\"Liveness, counters,\
+      \ CPU and UI snapshots (all cheap; every tick).\"\"\"\n        started = self._started\
+      \ or now\n        warm = now - started > self.stall + 2.0\n        adc_age =\
+      \ now - self._seen['adc'] if self._seen['adc'] else None\n        chans = []\n\
+      \        for k in range(NUM_CHANNELS):\n            last = min(self._seen['meas'][k],\
+      \ self._seen['dfr'][k])\n            chans.append(bool(last) and now - last\
+      \ < self.stall)\n        fault = None\n        if warm and (adc_age is None\
+      \ or adc_age > self.stall):\n            fault = ('receiver stalled: no samples\
+      \ from the radio for more '\n                     'than %.0f s - check the E200\
+      \ link (USB/Ethernet) and '\n                     'the console' % self.stall)\n\
+      \        elif warm and not all(chans):\n            dead = [k for k in range(NUM_CHANNELS)\
+      \ if not chans[k]]\n            fault = ('receive chain of channel%s %s stalled\
+      \ (no data for '\n                     'more than %.0f s)%s'\n             \
+      \        % ('s' if len(dead) > 1 else '',\n                        ', '.join(str(k)\
+      \ for k in dead), self.stall,\n                        '; the other channels\
+      \ are unaffected'\n                        if len(dead) < NUM_CHANNELS else\
+      \ ''))\n        if fault != self._fault:\n            self._fault = fault\n\
+      \            if fault:\n                self._fault_told = now\n           \
+      \     self._say('FAULT: ' + fault)\n                self.app._system(fault,\
+      \ 'error')\n            elif warm:\n                self._say('receive chains\
+      \ running again')\n        elif fault and now - self._fault_told > 30.0:\n \
+      \           self._fault_told = now\n            self._say('FAULT (continuing):\
+      \ ' + fault)\n        self.app.set_phy('live', {'channels': chans, 'fault':\
+      \ fault,\n                                  'adc_age': adc_age})\n        tap\
+      \ = self._tap\n        self.app.set_phy('ou', {'overflows': tap.overflows if\
+      \ tap else None,\n                                'underflows': tap.underflows\
+      \ if tap else None,\n                                'tap': bool(tap and tap.active),\n\
+      \                                'error': tap.error if tap else None})\n   \
+      \     self.app.set_phy('afc', [{'cfo': round(a.cfo, 1),\n                  \
+      \                'residual': (round(a.residual, 1)\n                       \
+      \                        if a.residual is not None\n                       \
+      \                        else None),\n                                  'ratio':\
+      \ round(a.ratio, 1),\n                                  'updates': a.updates}\
+      \ for a in self._afc])\n        self.app.set_phy('deframer', list(self._dfr))\n\
+      \        self.app.set_phy('txq', dict(self._txq))\n        if now >= self._cpu_next:\n\
+      \            self._cpu_next = now + CPU_EVERY\n            self._sample_cpu(now)\n\
+      \        if now >= self._view_next:\n            self._view_next = now + VIEW_EVERY\n\
+      \            self.app.publish_view(dict(self._view))\n            self._view\
+      \ = {'const': [None] * NUM_CHANNELS, 'spectrum': None}\n\n    def _sample_cpu(self,\
+      \ now):\n        \"\"\"CPU per GNU Radio thread (threads carry their block's\
+      \ name).\"\"\"\n        snap = _thread_cpu()\n        proc = sum(os.times()[:2])\n\
+      \        prev, self._cpu_prev = self._cpu_prev, (now, snap, proc)\n        if\
+      \ prev is None:\n            return\n        dt = max(1e-3, now - prev[0])\n\
+      \        agg = {}\n        for tid, (name, c) in snap.items():\n           \
+      \ old = prev[1].get(tid)\n            if old is None:\n                continue\n\
+      \            key = name.rstrip('0123456789') or name\n            agg[key] =\
+      \ agg.get(key, 0.0) + (c - old[1]) / dt\n        top = sorted(agg.items(), key=lambda\
+      \ kv: -kv[1])[:12]\n        self.app.set_phy('cpu', {'process': round((proc\
+      \ - prev[2]) / dt, 2),\n                                 'top': [[n, round(c,\
+      \ 3)] for n, c in top\n                                         if c >= 0.005]})\n"
+    ack_timeout: ack_timeout
+    affinity: ''
+    agc: agc
+    alias: ''
+    center_freq: center_freq
+    ch_first: ch_first
+    ch_spacing: ch_spacing
+    channel: channel
+    comment: MAC + link layer + encryption + gain control + chat UI
+    count_ou: 'True'
+    frag_size: frag_size
+    http_port: http_port
+    keys_dir: keys_dir
+    max_retries: max_retries
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    my_addr: my_addr
+    nickname: nickname
+    open_ui: 'True'
+    overhead: preamble_size+postamble_size+12
+    peer_addr: peer_addr
+    plan_file: plan_file
+    queue_ahead: queue_ahead
+    radio_rate: radio_rate
+    rx_dir: '"."'
+    rx_gain: rx_gain
+    security: security
+    sym_rate: sym_rate
+    telemetry: telemetry
+    tx_atten: tx_atten
+    window: arq_window
+  states:
+    _io_cache: '(''BPSK Chat Node'', ''blk'', [(''my_addr'', ''0''), (''peer_addr'',
+      ''0''), (''ack_timeout'', ''0.5''), (''max_retries'', ''5''), (''frag_size'',
+      ''256''), (''queue_ahead'', ''0.03''), (''sym_rate'', ''250000.0''), (''overhead'',
+      ''140''), (''rx_dir'', "''.''"), (''nickname'', "''''"), (''http_port'', ''8088''),
+      (''open_ui'', ''True''), (''center_freq'', ''0.0''), (''security'', ''True''),
+      (''keys_dir'', "''keys''"), (''window'', ''32''), (''channel'', ''-1''), (''ch_spacing'',
+      ''600000.0''), (''ch_first'', ''450000.0''), (''radio_rate'', ''6000000.0''),
+      (''rx_gain'', ''30''), (''tx_atten'', ''50''), (''agc'', ''True''), (''telemetry'',
+      ''True''), (''plan_file'', "''''"), (''count_ou'', ''True'')], [(''chat_in'',
+      ''message'', 1), (''iq2'', ''message'', 1), (''meas2'', ''message'', 1), (''rx2'',
+      ''message'', 1), (''iq1'', ''message'', 1), (''meas1'', ''message'', 1), (''rx1'',
+      ''message'', 1), (''iq0'', ''message'', 1), (''meas0'', ''message'', 1), (''rx0'',
+      ''message'', 1), (''txstat'', ''message'', 1), (''adc'', ''message'', 1), (''tick'',
+      ''message'', 1), (''rx_frame'', ''message'', 1), (''iq3'', ''message'', 1),
+      (''meas3'', ''message'', 1), (''rx3'', ''message'', 1)], [(''afc3'', ''message'',
+      1), (''afc2'', ''message'', 1), (''afc1'', ''message'', 1), (''afc0'', ''message'',
+      1), (''log'', ''message'', 1), (''tx_attr'', ''message'', 1), (''rx_attr'',
+      ''message'', 1), (''tx_ctl'', ''message'', 1), (''tx_en'', ''message'', 1),
+      (''tx_frame'', ''message'', 1)], ''BPSK network node: MAC, ARQ link layer, encryption,
+      chat UI.'', [''http_port'', ''open_ui'', ''radio_rate''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2420, 1092]
+    rotation: 0
+    state: enabled
+- name: meas_keep_ch0
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '512'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '25000'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 750]
+    rotation: 0
+    state: enabled
+- name: meas_keep_ch1
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '512'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '25000'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1050]
+    rotation: 0
+    state: enabled
+- name: meas_keep_ch2
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '512'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '25000'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1350]
+    rotation: 0
+    state: enabled
+- name: meas_keep_ch3
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '512'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '25000'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 1650]
+    rotation: 0
+    state: enabled
+- name: meas_pdu_ch0
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1600, 750]
+    rotation: 0
+    state: enabled
+- name: meas_pdu_ch1
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1600, 1050]
+    rotation: 0
+    state: enabled
+- name: meas_pdu_ch2
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1600, 1350]
+    rotation: 0
+    state: enabled
+- name: meas_pdu_ch3
+  id: pdu_tagged_stream_to_pdu
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    tag: packet_len
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1600, 1650]
+    rotation: 0
+    state: enabled
+- name: meas_pkt_ch0
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '2048'
+    packet_len: '512'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1400, 750]
+    rotation: 0
+    state: enabled
+- name: meas_pkt_ch1
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '2048'
+    packet_len: '512'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1400, 1050]
+    rotation: 0
+    state: enabled
+- name: meas_pkt_ch2
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '2048'
+    packet_len: '512'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1400, 1350]
+    rotation: 0
+    state: enabled
+- name: meas_pkt_ch3
+  id: blocks_stream_to_tagged_stream
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    len_tag_key: '"packet_len"'
+    maxoutbuf: '0'
+    minoutbuf: '2048'
+    packet_len: '512'
+    type: complex
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1400, 1650]
+    rotation: 0
+    state: enabled
+- name: my_addr
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 0 = derived from the key
+    hide: none
+    label: My address
+    short_id: ''
+    type: intx
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 16]
+    rotation: 0
+    state: enabled
+- name: nickname
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Chat nickname
+    short_id: ''
+    type: str
+    value: ''''''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1416, 16]
+    rotation: 0
+    state: enabled
+- name: peer_addr
+  id: parameter
+  parameters:
+    alias: ''
+    comment: '0 = mesh; with my_addr: static two-node mode'
+    hide: none
+    label: Peer address
+    short_id: ''
+    type: intx
+    value: '0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1592, 16]
+    rotation: 0
+    state: enabled
+- name: plan_file
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 'optional JSON {"channels": {"<fingerprint|nickname>": k}}'
+    hide: none
+    label: Static channel plan file
+    short_id: ''
+    type: str
+    value: ''''''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1592, 128]
+    rotation: 0
+    state: enabled
+- name: postamble_size
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Postamble (bytes)
+    short_id: ''
+    type: intx
+    value: '64'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1768, 16]
+    rotation: 0
+    state: enabled
+- name: preamble_size
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Preamble (bytes)
+    short_id: ''
+    type: intx
+    value: '64'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 128]
+    rotation: 0
+    state: enabled
+- name: qtgui_edit_box_msg_0
+  id: qtgui_edit_box_msg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: fallback console - the chat UI is served on http_port
+    gui_hint: '[0, 0, 1, 2]'
+    is_pair: 'False'
+    is_static: 'True'
+    key: '""'
+    label: '"Console  (the chat lives in the browser; /stats, /gain, /help here)"'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: string
+    value: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2420, 592]
+    rotation: 0
+    state: enabled
+- name: radio_rate
+  id: parameter
+  parameters:
+    alias: ''
+    comment: 'r6.1: 6 MS/s, one-sided channel plan'
+    hide: none
+    label: Radio sample rate
+    short_id: ''
+    type: eng_float
+    value: 6e6
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [184, 128]
+    rotation: 0
+    state: enabled
+- name: rrc_ch0
+  id: fft_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    decim: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nthreads: '1'
+    samp_delay: '0'
+    taps: rrc_taps
+    type: ccc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [760, 640]
+    rotation: 0
+    state: enabled
+- name: rrc_ch1
+  id: fft_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    decim: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nthreads: '1'
+    samp_delay: '0'
+    taps: rrc_taps
+    type: ccc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [760, 940]
+    rotation: 0
+    state: enabled
+- name: rrc_ch2
+  id: fft_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    decim: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nthreads: '1'
+    samp_delay: '0'
+    taps: rrc_taps
+    type: ccc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [760, 1240]
+    rotation: 0
+    state: enabled
+- name: rrc_ch3
+  id: fft_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    decim: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nthreads: '1'
+    samp_delay: '0'
+    taps: rrc_taps
+    type: ccc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [760, 1540]
+    rotation: 0
+    state: enabled
+- name: rx_attr
+  id: iio_attr_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    attr_type: '0'
+    channel: '"voltage0"'
+    comment: RX gain (hardwaregain) and RF bandwidth from the node
+    device: '"ad9361-phy"'
+    output: 'False'
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [16, 1400]
+    rotation: 0
+    state: enabled
+- name: rx_buffer
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Pluto RX buffer (samples)
+    short_id: ''
+    type: intx
+    value: '65536'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [360, 128]
+    rotation: 0
+    state: enabled
+- name: rx_gain
+  id: parameter
+  parameters:
+    alias: ''
+    comment: gain control moves it from here (agc=1)
+    hide: none
+    label: RX gain at start (dB)
+    short_id: ''
+    type: intx
+    value: '30'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [712, 128]
+    rotation: 0
+    state: enabled
+- name: rx_spec_keep
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '1024'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '61440'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [480, 1960]
+    rotation: 0
+    state: enabled
+- name: rx_spectrum
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '0.2'
+    axislabels: 'True'
+    bw: radio_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: '1024 samples in 61440 (C++, no copy of the rest): the GUI never holds
+      the radio back'
+    ctrlpanel: 'False'
+    fc: center_freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: '[1, 0, 2, 2]'
+    label: Relative Gain
+    label1: '""'
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"RX spectrum"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.20'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '0'
+    ymin: '-120'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [880, 1960]
+    rotation: 0
+    state: enabled
+- name: security
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Encryption (1/0)
+    short_id: ''
+    type: intx
+    value: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1240, 128]
+    rotation: 0
+    state: enabled
+- name: symbol_sync_ch0
+  id: digital_symbol_sync_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel.base()
+    damping: '1.0'
+    loop_bw: '0.02'
+    max_dev: '0.01'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nfilters: '32'
+    osps: '1'
+    pfb_mf_taps: '[]'
+    resamp_type: digital.IR_MMSE_8TAP
+    sps: sps
+    ted_gain: '0.1'
+    ted_type: digital.TED_SIGNAL_TIMES_SLOPE_ML
+    type: cc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [960, 640]
+    rotation: 0
+    state: enabled
+- name: symbol_sync_ch1
+  id: digital_symbol_sync_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel.base()
+    damping: '1.0'
+    loop_bw: '0.02'
+    max_dev: '0.01'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nfilters: '32'
+    osps: '1'
+    pfb_mf_taps: '[]'
+    resamp_type: digital.IR_MMSE_8TAP
+    sps: sps
+    ted_gain: '0.1'
+    ted_type: digital.TED_SIGNAL_TIMES_SLOPE_ML
+    type: cc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [960, 940]
+    rotation: 0
+    state: enabled
+- name: symbol_sync_ch2
+  id: digital_symbol_sync_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel.base()
+    damping: '1.0'
+    loop_bw: '0.02'
+    max_dev: '0.01'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nfilters: '32'
+    osps: '1'
+    pfb_mf_taps: '[]'
+    resamp_type: digital.IR_MMSE_8TAP
+    sps: sps
+    ted_gain: '0.1'
+    ted_type: digital.TED_SIGNAL_TIMES_SLOPE_ML
+    type: cc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [960, 1240]
+    rotation: 0
+    state: enabled
+- name: symbol_sync_ch3
+  id: digital_symbol_sync_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    constellation: constel.base()
+    damping: '1.0'
+    loop_bw: '0.02'
+    max_dev: '0.01'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nfilters: '32'
+    osps: '1'
+    pfb_mf_taps: '[]'
+    resamp_type: digital.IR_MMSE_8TAP
+    sps: sps
+    ted_gain: '0.1'
+    ted_type: digital.TED_SIGNAL_TIMES_SLOPE_ML
+    type: cc
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [960, 1540]
+    rotation: 0
+    state: enabled
+- name: telemetry
+  id: parameter
+  parameters:
+    alias: ''
+    comment: one row per second in telemetry/
+    hide: none
+    label: Telemetry CSV (1/0)
+    short_id: ''
+    type: intx
+    value: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1416, 128]
+    rotation: 0
+    state: enabled
+- name: tx_atten
+  id: parameter
+  parameters:
+    alias: ''
+    comment: gain control moves it from here (agc=1)
+    hide: none
+    label: TX attenuation at start (dB)
+    short_id: ''
+    type: intx
+    value: '50'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [888, 128]
+    rotation: 0
+    state: enabled
+- name: tx_attr
+  id: iio_attr_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    attr_type: '0'
+    channel: '"voltage0"'
+    comment: TX attenuation (hardwaregain = -dB) from the node
+    device: '"ad9361-phy"'
+    output: 'True'
+    uri: uri
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [16, 1500]
+    rotation: 0
+    state: enabled
+- name: tx_buffer
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Pluto TX buffer (samples)
+    short_id: ''
+    type: intx
+    value: '49152'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [536, 128]
+    rotation: 0
+    state: enabled
+- name: tx_framer
+  id: epy_block
+  parameters:
+    _source_code: "\"\"\"BPSK transmit framer (r6.1, embedded block).\n\nMessage port\
+      \ 'frames' in: link frames (PDUs) from the node block. Port 'ctl'\nin: {'enable':\
+      \ bool}. Stream out: BPSK symbols, one per symbol period, to the\ninterpolating\
+      \ RRC filter. Port 'status' out, every 50 ms: the transmit\nbacklog, so the\
+      \ node's airtime model tracks the real queue.\n\nThe radio pulls symbols at\
+      \ exactly its own rate, so this block's queue is\nthe whole transmit backlog.\
+      \ While enabled, gaps between frames are filled\nwith a PRBS-15 pattern (no\
+      \ access code can appear in it) so the carrier is\ncontinuous without the link\
+      \ layer making ~200 IDLE frames a second; while\ndisabled (the MAC listening\
+      \ or checking its channel) it sends zeros, which\nkeeps the DAC fed - no 'U'\
+      \ - and the channel silent. Switching off is\nimmediate: the frame on air and\
+      \ any still queued are discarded (the link\nlayer's ARQ resends what mattered).\
+      \ The framing and modulation\nare bpsk_phy.TxFramer, identical on air to r6.0's\
+      \ tagged_stream_mux +\ngeneric_mod(differential BPSK).\n\"\"\"\n\nimport os\n\
+      import sys\nimport time\nimport traceback\n\nimport numpy as np\nimport pmt\n\
+      from gnuradio import gr\n\n\ndef _load(name):\n    \"\"\"Load a sibling module\
+      \ by path (see the deframer block).\"\"\"\n    import importlib.util\n    if\
+      \ name in sys.modules:\n        return sys.modules[name]\n    roots = []\n \
+      \   try:\n        roots.append(os.path.dirname(os.path.abspath(__file__)))\n\
+      \    except NameError:\n        pass\n    roots.append(os.getcwd())\n    roots.extend([p\
+      \ for p in sys.path if p])\n    for root in roots:\n        path = os.path.join(root,\
+      \ name + '.py')\n        if os.path.isfile(path):\n            spec = importlib.util.spec_from_file_location(name,\
+      \ path)\n            mod = importlib.util.module_from_spec(spec)\n         \
+      \   sys.modules[name] = mod\n            try:\n                spec.loader.exec_module(mod)\n\
+      \            except Exception:\n                sys.modules.pop(name, None)\n\
+      \                raise\n            return mod\n    return None\n\n\ntry:\n\
+      \    _phy = _load('bpsk_phy')\n    _err = '' if _phy is not None else 'bpsk_phy.py\
+      \ not found'\nexcept Exception as _e:          # noqa: BLE001 - reported at\
+      \ run time\n    _phy, _err = None, repr(_e)\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"BPSK TX framer: link frames in, continuous symbols out.\"\"\"\n\n\
+      \    def __init__(self, preamble_size=64, postamble_size=64,\n             \
+      \    sym_rate=250000.0, max_backlog=0.5, batch=2560):\n        gr.sync_block.__init__(self,\
+      \ name='BPSK TX Framer', in_sig=None,\n                               out_sig=[np.complex64])\n\
+      \        self.set_output_multiple(max(64, int(batch)))\n        self._in = pmt.intern('frames')\n\
+      \        self._ctl = pmt.intern('ctl')\n        self._out = pmt.intern('status')\n\
+      \        self.message_port_register_in(self._in)\n        self.message_port_register_in(self._ctl)\n\
+      \        self.message_port_register_out(self._out)\n        # GNU Radio finds\
+      \ a Python handler again BY NAME: real methods only.\n        self.set_msg_handler(self._in,\
+      \ self._on_frame)\n        self.set_msg_handler(self._ctl, self._on_ctl)\n \
+      \       self._core = (_phy.TxFramer(preamble_size, postamble_size, sym_rate,\n\
+      \                                    max_backlog) if _phy is not None else None)\n\
+      \        self._enabled = False\n        self._flushed = 0\n        self._next\
+      \ = 0.0\n        self._faults = 0\n        self._sent_syms = 0\n\n    def _on_frame(self,\
+      \ msg):\n        try:\n            if self._core is None or not pmt.is_pair(msg):\n\
+      \                return\n            vec = pmt.cdr(msg)\n            if pmt.is_u8vector(vec):\n\
+      \                self._core.push(bytes(pmt.u8vector_elements(vec)))\n      \
+      \  except Exception:                         # noqa: BLE001\n            self._fault()\n\
+      \n    def _on_ctl(self, msg):\n        try:\n            if pmt.is_dict(msg):\n\
+      \                val = pmt.dict_ref(msg, pmt.intern('enable'), pmt.PMT_NIL)\n\
+      \                if pmt.is_bool(val):\n                    on = pmt.to_bool(val)\n\
+      \                    if not on and self._core is not None:\n               \
+      \         c = self._core\n                        self._flushed += len(c.queue)\
+      \ + (c.cur is not None)\n                        c.queue.clear()\n         \
+      \               c.queued_bits = 0\n                        c.cur, c.pos = None,\
+      \ 0\n                    self._enabled = on\n        except Exception:     \
+      \                    # noqa: BLE001\n            self._fault()\n\n    def _fault(self):\n\
+      \        self._faults += 1\n        if self._faults <= 3:\n            traceback.print_exc()\n\
+      \n    def work(self, input_items, output_items):\n        out = output_items[0]\n\
+      \        n = len(out)\n        core = self._core\n        if core is None or\
+      \ not self._enabled:\n            out[:] = 0\n        else:\n            try:\n\
+      \                out[:] = core.next_symbols(n)\n            except Exception:\
+      \                     # noqa: BLE001\n                self._fault()\n      \
+      \          out[:] = 0\n        self._sent_syms += n\n        now = time.time()\n\
+      \        if now >= self._next:\n            self._next = now + 0.05\n      \
+      \      st = {'t': now, 'enabled': self._enabled,\n                  'symbols':\
+      \ self._sent_syms, 'flushed': self._flushed,\n                  'faults': self._faults}\n\
+      \            if core is not None:\n                st.update(core.stats)\n \
+      \               st['backlog'] = core.backlog()\n            else:\n        \
+      \        st['error'] = _err\n            self.message_port_pub(self._out, pmt.to_pmt(st))\n\
+      \        return n\n"
+    affinity: ''
+    alias: ''
+    batch: '2560'
+    comment: frames + PRBS filler, pulled by the radio
+    max_backlog: '0.5'
+    maxoutbuf: '7680'
+    minoutbuf: '7680'
+    postamble_size: postamble_size
+    preamble_size: preamble_size
+    sym_rate: sym_rate
+  states:
+    _io_cache: '(''BPSK TX Framer'', ''blk'', [(''preamble_size'', ''64''), (''postamble_size'',
+      ''64''), (''sym_rate'', ''250000.0''), (''max_backlog'', ''0.5''), (''batch'',
+      ''2560'')], [(''frames'', ''message'', 1), (''ctl'', ''message'', 1)], [(''0'',
+      ''complex'', 1), (''status'', ''message'', 1)], ''BPSK TX framer: link frames
+      in, continuous symbols out.'', [])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2700, 692]
+    rotation: 0
+    state: enabled
+- name: tx_interp_filter
+  id: interp_fir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    interp: tx_interp
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_delay: '0'
+    taps: tx_taps
+    type: ccf
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [2960, 692]
+    rotation: 0
+    state: enabled
+- name: tx_shift
+  id: blocks_rotator_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: puts the transmitter on its channel (node tx_ctl)
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    phase_inc: '0'
+    tag_inc_update: 'False'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3200, 692]
+    rotation: 0
+    state: enabled
+- name: tx_spec_keep
+  id: blocks_keep_m_in_n
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    m: '1024'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '61440'
+    offset: '0'
+    type: complex
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [480, 2240]
+    rotation: 0
+    state: enabled
+- name: tx_spectrum
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '0.2'
+    axislabels: 'True'
+    bw: radio_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: 'own transmitter: adjacent-channel leakage (ACLR) is visible here'
+    ctrlpanel: 'False'
+    fc: center_freq
+    fftsize: '1024'
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: '[5, 0, 2, 2]'
+    label: Relative Gain
+    label1: '""'
+    label10: ''''''
+    label2: ''''''
+    label3: ''''''
+    label4: ''''''
+    label5: ''''''
+    label6: ''''''
+    label7: ''''''
+    label8: ''''''
+    label9: ''''''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"TX spectrum"'
+    nconnections: '1'
+    norm_window: 'False'
+    showports: 'False'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: complex
+    units: dB
+    update_time: '0.20'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: window.WIN_BLACKMAN_hARRIS
+    ymax: '0'
+    ymin: '-120'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [880, 2240]
+    rotation: 0
+    state: enabled
+- name: uri
+  id: parameter
+  parameters:
+    alias: ''
+    comment: ''
+    hide: none
+    label: Pluto URI
+    short_id: ''
+    type: str
+    value: '''ip:192.168.1.10'''
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1768, 128]
+    rotation: 0
+    state: enabled
+
+connections:
+- [adc_keep, '0', adc_pkt, '0']
+- [adc_pdu, pdus, link_layer, adc]
+- [adc_pkt, '0', adc_pdu, '0']
+- [afc_ch0, '0', agc_ch0, '0']
+- [afc_ch0, '0', iq_keep_ch0, '0']
+- [afc_ch1, '0', agc_ch1, '0']
+- [afc_ch1, '0', iq_keep_ch1, '0']
+- [afc_ch2, '0', agc_ch2, '0']
+- [afc_ch2, '0', iq_keep_ch2, '0']
+- [afc_ch3, '0', agc_ch3, '0']
+- [afc_ch3, '0', iq_keep_ch3, '0']
+- [agc_ch0, '0', rrc_ch0, '0']
+- [agc_ch1, '0', rrc_ch1, '0']
+- [agc_ch2, '0', rrc_ch2, '0']
+- [agc_ch3, '0', rrc_ch3, '0']
+- [bits_to_vec_ch0, '0', deframer_ch0, '0']
+- [bits_to_vec_ch1, '0', deframer_ch1, '0']
+- [bits_to_vec_ch2, '0', deframer_ch2, '0']
+- [bits_to_vec_ch3, '0', deframer_ch3, '0']
+- [blocks_message_strobe_0, strobe, link_layer, tick]
+- [chan_filter_ch0, '0', afc_ch0, '0']
+- [chan_filter_ch1, '0', afc_ch1, '0']
+- [chan_filter_ch2, '0', afc_ch2, '0']
+- [chan_filter_ch3, '0', afc_ch3, '0']
+- [const_keep_ch0, '0', const_sink_ch0, '0']
+- [const_keep_ch1, '0', const_sink_ch1, '0']
+- [const_keep_ch2, '0', const_sink_ch2, '0']
+- [const_keep_ch3, '0', const_sink_ch3, '0']
+- [costas_ch0, '0', const_keep_ch0, '0']
+- [costas_ch0, '0', decoder_ch0, '0']
+- [costas_ch0, '0', meas_keep_ch0, '0']
+- [costas_ch1, '0', const_keep_ch1, '0']
+- [costas_ch1, '0', decoder_ch1, '0']
+- [costas_ch1, '0', meas_keep_ch1, '0']
+- [costas_ch2, '0', const_keep_ch2, '0']
+- [costas_ch2, '0', decoder_ch2, '0']
+- [costas_ch2, '0', meas_keep_ch2, '0']
+- [costas_ch3, '0', const_keep_ch3, '0']
+- [costas_ch3, '0', decoder_ch3, '0']
+- [costas_ch3, '0', meas_keep_ch3, '0']
+- [decoder_ch0, '0', diff_decoder_ch0, '0']
+- [decoder_ch1, '0', diff_decoder_ch1, '0']
+- [decoder_ch2, '0', diff_decoder_ch2, '0']
+- [decoder_ch3, '0', diff_decoder_ch3, '0']
+- [deframer_ch0, pdus, link_layer, rx0]
+- [deframer_ch1, pdus, link_layer, rx1]
+- [deframer_ch2, pdus, link_layer, rx2]
+- [deframer_ch3, pdus, link_layer, rx3]
+- [diff_decoder_ch0, '0', bits_to_vec_ch0, '0']
+- [diff_decoder_ch1, '0', bits_to_vec_ch1, '0']
+- [diff_decoder_ch2, '0', bits_to_vec_ch2, '0']
+- [diff_decoder_ch3, '0', bits_to_vec_ch3, '0']
+- [iio_pluto_source_0, '0', adc_keep, '0']
+- [iio_pluto_source_0, '0', chan_filter_ch0, '0']
+- [iio_pluto_source_0, '0', chan_filter_ch1, '0']
+- [iio_pluto_source_0, '0', chan_filter_ch2, '0']
+- [iio_pluto_source_0, '0', chan_filter_ch3, '0']
+- [iio_pluto_source_0, '0', rx_spec_keep, '0']
+- [iq_keep_ch0, '0', iq_pkt_ch0, '0']
+- [iq_keep_ch1, '0', iq_pkt_ch1, '0']
+- [iq_keep_ch2, '0', iq_pkt_ch2, '0']
+- [iq_keep_ch3, '0', iq_pkt_ch3, '0']
+- [iq_pdu_ch0, pdus, link_layer, iq0]
+- [iq_pdu_ch1, pdus, link_layer, iq1]
+- [iq_pdu_ch2, pdus, link_layer, iq2]
+- [iq_pdu_ch3, pdus, link_layer, iq3]
+- [iq_pkt_ch0, '0', iq_pdu_ch0, '0']
+- [iq_pkt_ch1, '0', iq_pdu_ch1, '0']
+- [iq_pkt_ch2, '0', iq_pdu_ch2, '0']
+- [iq_pkt_ch3, '0', iq_pdu_ch3, '0']
+- [link_layer, afc0, afc_ch0, cmd]
+- [link_layer, afc1, afc_ch1, cmd]
+- [link_layer, afc2, afc_ch2, cmd]
+- [link_layer, afc3, afc_ch3, cmd]
+- [link_layer, rx_attr, rx_attr, attr]
+- [link_layer, tx_attr, tx_attr, attr]
+- [link_layer, tx_ctl, tx_shift, cmd]
+- [link_layer, tx_en, tx_framer, ctl]
+- [link_layer, tx_frame, tx_framer, frames]
+- [meas_keep_ch0, '0', meas_pkt_ch0, '0']
+- [meas_keep_ch1, '0', meas_pkt_ch1, '0']
+- [meas_keep_ch2, '0', meas_pkt_ch2, '0']
+- [meas_keep_ch3, '0', meas_pkt_ch3, '0']
+- [meas_pdu_ch0, pdus, link_layer, meas0]
+- [meas_pdu_ch1, pdus, link_layer, meas1]
+- [meas_pdu_ch2, pdus, link_layer, meas2]
+- [meas_pdu_ch3, pdus, link_layer, meas3]
+- [meas_pkt_ch0, '0', meas_pdu_ch0, '0']
+- [meas_pkt_ch1, '0', meas_pdu_ch1, '0']
+- [meas_pkt_ch2, '0', meas_pdu_ch2, '0']
+- [meas_pkt_ch3, '0', meas_pdu_ch3, '0']
+- [qtgui_edit_box_msg_0, msg, link_layer, chat_in]
+- [rrc_ch0, '0', symbol_sync_ch0, '0']
+- [rrc_ch1, '0', symbol_sync_ch1, '0']
+- [rrc_ch2, '0', symbol_sync_ch2, '0']
+- [rrc_ch3, '0', symbol_sync_ch3, '0']
+- [rx_spec_keep, '0', rx_spectrum, '0']
+- [symbol_sync_ch0, '0', costas_ch0, '0']
+- [symbol_sync_ch1, '0', costas_ch1, '0']
+- [symbol_sync_ch2, '0', costas_ch2, '0']
+- [symbol_sync_ch3, '0', costas_ch3, '0']
+- [tx_framer, '0', tx_interp_filter, '0']
+- [tx_framer, status, link_layer, txstat]
+- [tx_interp_filter, '0', tx_shift, '0']
+- [tx_interp_filter, '0', tx_spec_keep, '0']
+- [tx_shift, '0', iio_pluto_sink_0, '0']
+- [tx_spec_keep, '0', tx_spectrum, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.12.0
